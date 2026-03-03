@@ -17,7 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.koinScreenModel
+import org.koin.compose.koinInject
 import com.wiveb.agentplatform.data.model.Agent
 import com.wiveb.agentplatform.ui.components.*
 import com.wiveb.agentplatform.ui.theme.*
@@ -25,7 +25,7 @@ import com.wiveb.agentplatform.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgentsScreen() {
-    val model = koinScreenModel<AgentsScreenModel>()
+    val model = koinInject<AgentsScreenModel>()
     val state by model.state.collectAsState()
     val expanded by model.expanded.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }

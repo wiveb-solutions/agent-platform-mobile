@@ -23,13 +23,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.koinScreenModel
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
+import com.wiveb.agentplatform.data.api.AgentPlatformApi
 import com.wiveb.agentplatform.ui.components.*
 import com.wiveb.agentplatform.ui.theme.*
+import org.koin.compose.koinInject
 import kotlinx.coroutines.launch
-import org.koin.core.parameter.parametersOf
 
 @Composable
 fun ChatScreen() {
@@ -50,7 +50,7 @@ fun ChatScreen() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatListView(onSelectSession: (String) -> Unit) {
-    val model = koinScreenModel<ChatListScreenModel>()
+    val model = koinInject<ChatListScreenModel>()
     val state by model.state.collectAsState()
     val filter by model.filter.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
@@ -152,7 +152,8 @@ private fun SessionItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
-    val model = koinScreenModel<ChatDetailScreenModel> { parametersOf(sessionKey) }
+    val api = koinInject<AgentPlatformApi>()
+    val model = remember(sessionKey) { ChatDetailScreenModel(api, sessionKey) }
     val messagesState by model.messages.collectAsState()
     val sending by model.sending.collectAsState()
     val thinking by model.thinking.collectAsState()

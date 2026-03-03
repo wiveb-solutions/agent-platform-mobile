@@ -7,7 +7,6 @@ import com.wiveb.agentplatform.data.sse.SseService
 import com.wiveb.agentplatform.ui.activity.ActivityScreenModel
 import com.wiveb.agentplatform.ui.agents.AgentsScreenModel
 import com.wiveb.agentplatform.ui.board.BoardScreenModel
-import com.wiveb.agentplatform.ui.chat.ChatDetailScreenModel
 import com.wiveb.agentplatform.ui.chat.ChatListScreenModel
 import com.wiveb.agentplatform.ui.dashboard.DashboardScreenModel
 import com.wiveb.agentplatform.ui.settings.SettingsScreenModel
@@ -19,11 +18,10 @@ val appModule = module {
     single { AgentPlatformApi(get(), baseUrlProvider = { get<SettingsRepository>().getBaseUrl() }) }
     single { SseService(get(), baseUrlProvider = { get<SettingsRepository>().getBaseUrl() }) }
 
-    factory { DashboardScreenModel(get(), get()) }
-    factory { ChatListScreenModel(get()) }
-    factory { params -> ChatDetailScreenModel(get(), params.get()) }
-    factory { BoardScreenModel(get()) }
-    factory { ActivityScreenModel(get(), get()) }
-    factory { AgentsScreenModel(get()) }
-    factory { SettingsScreenModel(get(), get()) }
+    single { DashboardScreenModel(get(), get()) }
+    single { ChatListScreenModel(get()) }
+    single { BoardScreenModel(get()) }
+    single { ActivityScreenModel(get(), get()) }
+    single { AgentsScreenModel(get()) }
+    single { SettingsScreenModel(get(), get()) }
 }

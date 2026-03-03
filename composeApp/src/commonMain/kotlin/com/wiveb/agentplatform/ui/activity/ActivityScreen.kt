@@ -18,7 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.koinScreenModel
+import org.koin.compose.koinInject
 import com.wiveb.agentplatform.data.model.ActivityEvent
 import com.wiveb.agentplatform.data.model.AgentStatus
 import com.wiveb.agentplatform.ui.components.*
@@ -27,7 +27,7 @@ import com.wiveb.agentplatform.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivityScreen() {
-    val model = koinScreenModel<ActivityScreenModel>()
+    val model = koinInject<ActivityScreenModel>()
     val state by model.state.collectAsState()
     val filterAgent by model.filterAgent.collectAsState()
     val filterType by model.filterType.collectAsState()
@@ -48,9 +48,10 @@ fun ActivityScreen() {
             when (val s = state) {
                 is UiState.Loading -> LoadingIndicator(Modifier.fillMaxSize())
                 is UiState.Error -> ErrorCard(s.message, onRetry = { model.load() })
-                is UiState.Success -> {
+                is UiState.Success<ActivityData> -> {
+                    val data = s.data
                     // Agent status bar
-                    if (s.data.agentStatuses.isNotEmpty()) {
+                    if (data.agentStatuses.isNotEmpty()) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -58,7 +59,7 @@ fun ActivityScreen() {
                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            s.data.agentStatuses.forEach { agent ->
+                            data.agentStatuses.forEach { agent ->
                                 AgentStatusPill(agent)
                             }
                         }
@@ -107,14 +108,14 @@ fun ActivityScreen() {
                     }
 
                     // Event list
-                    if (s.data.events.isEmpty()) {
+                    if (data.events.isEmpty()) {
                         EmptyState("No activity events")
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                         ) {
-                            items(s.data.events) { event ->
+                            items(data.events) { event ->
                                 EventItem(event)
                             }
                         }

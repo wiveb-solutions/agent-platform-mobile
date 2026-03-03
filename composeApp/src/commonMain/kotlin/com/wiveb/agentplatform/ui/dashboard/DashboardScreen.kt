@@ -17,7 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.koinScreenModel
+import org.koin.compose.koinInject
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import com.wiveb.agentplatform.ui.components.*
 import com.wiveb.agentplatform.ui.navigation.AgentsTab
@@ -28,7 +28,7 @@ import com.wiveb.agentplatform.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen() {
-    val model = koinScreenModel<DashboardScreenModel>()
+    val model = koinInject<DashboardScreenModel>()
     val state by model.state.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
 

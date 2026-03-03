@@ -9,12 +9,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.koinScreenModel
+import org.koin.compose.koinInject
 import com.wiveb.agentplatform.ui.theme.*
 
 @Composable
 fun SettingsScreen() {
-    val model = koinScreenModel<SettingsScreenModel>()
+    val model = koinInject<SettingsScreenModel>()
     val baseUrl by model.baseUrl.collectAsState()
     val testResult by model.testResult.collectAsState()
     val testing by model.testing.collectAsState()

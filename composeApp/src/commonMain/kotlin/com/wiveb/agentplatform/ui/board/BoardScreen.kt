@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.koinScreenModel
+import org.koin.compose.koinInject
 import com.wiveb.agentplatform.data.model.BoardColumn
 import com.wiveb.agentplatform.data.model.WorkItem
 import com.wiveb.agentplatform.ui.components.*
@@ -26,7 +26,7 @@ import com.wiveb.agentplatform.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BoardScreen() {
-    val model = koinScreenModel<BoardScreenModel>()
+    val model = koinInject<BoardScreenModel>()
     val state by model.state.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
     var selectedItem by remember { mutableStateOf<WorkItem?>(null) }
