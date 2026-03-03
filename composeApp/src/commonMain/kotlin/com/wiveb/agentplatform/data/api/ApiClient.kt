@@ -32,16 +32,17 @@ fun createHttpClient(skipSslVerification: Boolean = false): HttpClient {
         // Désactivation SSL verification pour dev local
         if (skipSslVerification) {
             engine {
-                clientConfig = {
-                    OkHttpClient.Builder().apply {
-                        val sslContext = createInsecureSslContext()
-                        sslSocketFactory(
-                            sslContext.socketFactory,
-                            TrustAllTrustManager()
-                        )
-                        hostnameVerifier(AllowAllHostnameVerifier())
-                    }.build()
-                }
+                // Ktor 3.x: utiliser clientConfig pour passer un OkHttpClient personnalisé
+                val sslContext = createInsecureSslContext()
+                val trustManager = TrustAllTrustManager()
+                
+                val customOkHttp = OkHttpClient.Builder().apply {
+                    sslSocketFactory(sslContext.socketFactory, trustManager)
+                    hostnameVerifier(AllowAllHostnameVerifier())
+                }.build()
+                
+                // Passer le client OkHttp personnalisé
+                this.client = customOkHttp
             }
         }
     }
