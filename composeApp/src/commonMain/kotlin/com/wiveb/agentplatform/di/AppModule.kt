@@ -14,7 +14,11 @@ import org.koin.dsl.module
 
 val appModule = module {
     single { SettingsRepository() }
-    single { createHttpClient() }
+    
+    // ⚠️ skipSslVerification = true pour dev local avec certificat auto-signé (mkcert)
+    // À mettre à false en production!
+    single { createHttpClient(skipSslVerification = true) }
+    
     single { AgentPlatformApi(get(), baseUrlProvider = { get<SettingsRepository>().getBaseUrl() }) }
     single { SseService(get(), baseUrlProvider = { get<SettingsRepository>().getBaseUrl() }) }
 
