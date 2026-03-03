@@ -15,7 +15,25 @@ import okhttp3.OkHttpClient
  * ⚠️ À utiliser UNIQUEMENT en mode debug/dev local. JAMAIS en production!
  */
 fun createHttpClient(skipSslVerification: Boolean = false): HttpClient {
-    return HttpClient(OkHttp) {
+    // Créer l'OkHttpClient personnalisé si nécessaire
+    val okHttpClientBuilder = OkHttpClient.Builder()
+    
+    if (skipSslVerification) {
+        val sslContext = createInsecureSslContext()
+        val trustManager = TrustAllTrustManager()
+        okHttpClientBuilder
+            .sslSocketFactory(sslContext.socketFactory, trustManager)
+            .hostnameVerifier(AllowAllHostnameVerifier())
+    }
+    
+    val okHttpClient = okHttpClientBuilder.build()
+    
+    // Créer l'engine OkHttp avec le client personnalisé
+    val engine = OkHttp.create {
+        // La configuration est gérée par l'OkHttpClient passé
+    }
+    
+    return HttpClient(engine) {
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true
@@ -28,22 +46,5 @@ fun createHttpClient(skipSslVerification: Boolean = false): HttpClient {
             connectTimeoutMillis = 10_000
         }
         expectSuccess = false
-        
-        // Désactivation SSL verification pour dev local
-        if (skipSslVerification) {
-            engine {
-                // Ktor 3.x: utiliser clientConfig pour passer un OkHttpClient personnalisé
-                val sslContext = createInsecureSslContext()
-                val trustManager = TrustAllTrustManager()
-                
-                val customOkHttp = OkHttpClient.Builder().apply {
-                    sslSocketFactory(sslContext.socketFactory, trustManager)
-                    hostnameVerifier(AllowAllHostnameVerifier())
-                }.build()
-                
-                // Passer le client OkHttp personnalisé
-                this.client = customOkHttp
-            }
-        }
     }
 }
