@@ -39,7 +39,7 @@ class DashboardScreenModel(
                 val health = runCatching { api.getHealth() }.getOrDefault(HealthStatus())
                 val agents = runCatching { api.getAgents() }.getOrDefault(emptyList())
                 val burndown = runCatching { api.getBurndown() }.getOrDefault(BurndownResponse())
-                val tasks = runCatching { api.getTasks(limit = 5) }.getOrDefault(TasksResponse()).tasks
+                val tasks = runCatching { api.getTasks() }.getOrDefault(TasksResponse()).tasks.take(5)
                 _state.value = UiState.Success(DashboardData(health, agents, burndown, tasks))
             } catch (e: Exception) {
                 _state.value = UiState.Error(e.message ?: "Failed to load dashboard")
@@ -61,6 +61,4 @@ class DashboardScreenModel(
             }
         }
     }
-
-    private suspend fun api.getTasks(limit: Int): TasksResponse = getTasks()
 }
