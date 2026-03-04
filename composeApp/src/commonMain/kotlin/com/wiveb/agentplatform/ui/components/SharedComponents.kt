@@ -1,5 +1,6 @@
 package com.wiveb.agentplatform.ui.components
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -225,141 +225,112 @@ fun ContextBar(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NavigationDrawer(
     currentTab: Any,
     onTabSelected: (Any) -> Unit,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
+    content: @Composable (onOpenDrawer: () -> Unit) -> Unit,
 ) {
     var drawerOpen by remember { mutableStateOf(false) }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Contenu principal
-        content()
+        // Main content — passes the open callback so caller can put hamburger in TopAppBar
+        content { drawerOpen = true }
 
-        // Bouton hamburger
-        IconButton(
-            onClick = { drawerOpen = true },
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(8.dp),
+        // Scrim overlay
+        AnimatedVisibility(
+            visible = drawerOpen,
+            enter = androidx.compose.animation.fadeIn(animationSpec = tween(250)),
+            exit = androidx.compose.animation.fadeOut(animationSpec = tween(250)),
         ) {
-            Icon(
-                imageVector = Icons.Default.Menu,
-                contentDescription = "Open menu",
-                tint = Gray100,
-            )
-        }
-
-        // Overlay sombre quand le drawer est ouvert
-        if (drawerOpen) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.5f))
                     .clickable { drawerOpen = false },
-            ) {}
+            )
         }
 
-        // Drawer
-        if (drawerOpen) {
-            DrawerContainer {
-                Row(
-                    modifier = Modifier.fillMaxHeight(),
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(280.dp)
-                            .padding(16.dp),
+        // Drawer panel with slide animation
+        AnimatedVisibility(
+            visible = drawerOpen,
+            enter = androidx.compose.animation.slideInHorizontally(
+                initialOffsetX = { -it },
+                animationSpec = tween(300),
+            ),
+            exit = androidx.compose.animation.slideOutHorizontally(
+                targetOffsetX = { -it },
+                animationSpec = tween(250),
+            ),
+        ) {
+            Surface(
+                color = Gray900,
+                modifier = Modifier.fillMaxHeight().width(280.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxHeight().padding(16.dp)) {
+                    // Header row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // Bouton fermer
-                        IconButton(
-                            onClick = { drawerOpen = false },
-                            modifier = Modifier.align(Alignment.End),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = Gray100,
-                            )
-                        }
-
-                        Spacer(Modifier.height(8.dp))
-
-                        // Header
                         Text(
                             text = "Agent Platform",
                             color = Gray100,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 24.dp),
                         )
-
-                        Spacer(Modifier.height(8.dp))
-
-                        // Navigation items
-                        val tabs = listOf(
-                            DashboardTab to "Dashboard",
-                            ChatTab to "Chat",
-                            BoardTab to "Board",
-                            ActivityTab to "Activity",
-                            AgentsTab to "Agents",
-                        )
-
-                        tabs.forEach { (tab, label) ->
-                            FilterChip(
-                                selected = currentTab == tab,
-                                onClick = {
-                                    onTabSelected(tab)
-                                    drawerOpen = false
-                                },
-                                leadingIcon = {
-                                    tab.options.icon?.let { icon ->
-                                        Icon(
-                                            painter = icon,
-                                            contentDescription = label,
-                                            modifier = Modifier.size(20.dp),
-                                        )
-                                    }
-                                },
-                                label = {
-                                    Text(
-                                        text = label,
-                                        color = if (currentTab == tab) Indigo500 else Gray100,
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    containerColor = if (currentTab == tab) Gray800 else Color.Transparent,
-                                    labelColor = if (currentTab == tab) Indigo500 else Gray100,
-                                    iconColor = if (currentTab == tab) Indigo500 else Gray500,
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                            )
+                        IconButton(onClick = { drawerOpen = false }) {
+                            Icon(Icons.Default.Close, "Close", tint = Gray500)
                         }
+                    }
+
+                    HorizontalDivider(color = Gray800, modifier = Modifier.padding(vertical = 8.dp))
+
+                    // Navigation items
+                    val tabs = listOf(
+                        DashboardTab to "Dashboard",
+                        ChatTab to "Chat",
+                        BoardTab to "Board",
+                        ActivityTab to "Activity",
+                        AgentsTab to "Agents",
+                    )
+
+                    tabs.forEach { (tab, label) ->
+                        NavigationDrawerItem(
+                            selected = currentTab == tab,
+                            onClick = {
+                                onTabSelected(tab)
+                                drawerOpen = false
+                            },
+                            icon = {
+                                tab.options.icon?.let { icon ->
+                                    Icon(
+                                        painter = icon,
+                                        contentDescription = label,
+                                        tint = if (currentTab == tab) Indigo400 else Gray500,
+                                    )
+                                }
+                            },
+                            label = {
+                                Text(
+                                    text = label,
+                                    color = if (currentTab == tab) Indigo400 else Gray400,
+                                    fontWeight = if (currentTab == tab) FontWeight.SemiBold else FontWeight.Normal,
+                                )
+                            },
+                            colors = NavigationDrawerItemDefaults.colors(
+                                selectedContainerColor = Indigo500.copy(alpha = 0.12f),
+                                unselectedContainerColor = Color.Transparent,
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.padding(vertical = 2.dp),
+                        )
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun DrawerContainer(content: @Composable ColumnScope.() -> Unit) {
-    Surface(
-        color = Gray900,
-        modifier = Modifier
-            .fillMaxHeight()
-            .width(280.dp),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            content = content,
-        )
     }
 }
 

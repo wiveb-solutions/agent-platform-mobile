@@ -46,7 +46,7 @@ fun App() {
                             navigationIcon = {
                                 IconButton(onClick = { showSettings = false }) {
                                     Icon(
-                                        Icons.Default.Settings,
+                                        Icons.Default.ArrowBack,
                                         contentDescription = "Back",
                                         tint = Gray100,
                                     )
@@ -69,7 +69,7 @@ fun App() {
                         currentTab = tabNavigator.current,
                         onTabSelected = { tab -> tabNavigator.current = tab as cafe.adriel.voyager.navigator.tab.Tab },
                         modifier = Modifier.fillMaxSize(),
-                    ) {
+                    ) { onOpenDrawer ->
                         Scaffold(
                             topBar = {
                                 TopAppBar(
@@ -78,6 +78,15 @@ fun App() {
                                             "Agent Platform",
                                             color = Gray100,
                                         )
+                                    },
+                                    navigationIcon = {
+                                        IconButton(onClick = onOpenDrawer) {
+                                            Icon(
+                                                Icons.Default.Menu,
+                                                contentDescription = "Open menu",
+                                                tint = Gray100,
+                                            )
+                                        }
                                     },
                                     actions = {
                                         IconButton(onClick = { showSettings = true }) {
