@@ -2,6 +2,7 @@ package com.wiveb.agentplatform.ui.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -230,102 +231,118 @@ fun NavigationDrawer(
     currentTab: Any,
     onTabSelected: (Any) -> Unit,
     modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
 ) {
     var drawerOpen by remember { mutableStateOf(false) }
-    val focusManager = LocalFocusManager.current
 
-    // Fermer le drawer quand le clavier mobile s'ouvre (input focus)
-    DisposableEffect(Unit) {
-        val handler = {
-            // Fermer le drawer si un input reçoit le focus
-            focusManager.clearFocus()
-            drawerOpen = false
+    Box(modifier = modifier.fillMaxSize()) {
+        // Contenu principal
+        content()
+
+        // Bouton hamburger
+        IconButton(
+            onClick = { drawerOpen = true },
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(8.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Menu,
+                contentDescription = "Open menu",
+                tint = Gray100,
+            )
         }
-        // Note: Compose Multiplatform n'a pas d'événement beforefocus natif
-        // On utilise clearFocus() pour fermer le drawer
-        onDispose { }
-    }
 
-    ModalNavigationDrawer(
-        drawerState = rememberModalDrawerState(defaultDrawerPosition = DrawerValue.Closed),
-        drawerContent = {
+        // Overlay sombre quand le drawer est ouvert
+        if (drawerOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable { drawerOpen = false },
+            ) {}
+        }
+
+        // Drawer
+        if (drawerOpen) {
             DrawerContainer {
-                Column(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .padding(16.dp),
+                Row(
+                    modifier = Modifier.fillMaxHeight(),
                 ) {
-                    // Header
-                    Text(
-                        text = "Agent Platform",
-                        color = Gray100,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 24.dp),
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(280.dp)
+                            .padding(16.dp),
+                    ) {
+                        // Bouton fermer
+                        IconButton(
+                            onClick = { drawerOpen = false },
+                            modifier = Modifier.align(Alignment.End),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Gray100,
+                            )
+                        }
 
-                    Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(8.dp))
 
-                    // Navigation items
-                    val tabs = listOf(
-                        DashboardTab to "Dashboard",
-                        ChatTab to "Chat",
-                        BoardTab to "Board",
-                        ActivityTab to "Activity",
-                        AgentsTab to "Agents",
-                    )
-
-                    tabs.forEach { (tab, label) ->
-                        NavigationDrawerItem(
-                            selected = currentTab == tab,
-                            onClick = {
-                                onTabSelected(tab)
-                                drawerOpen = false
-                            },
-                            icon = {
-                                tab.options.icon?.let { icon ->
-                                    Icon(
-                                        painter = icon,
-                                        contentDescription = label,
-                                        tint = if (currentTab == tab) Indigo500 else Gray500,
-                                    )
-                                }
-                            },
-                            label = {
-                                Text(
-                                    text = label,
-                                    color = if (currentTab == tab) Indigo500 else Gray500,
-                                )
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    if (currentTab == tab) Gray800.copy(alpha = 0.5f) else Color.Transparent,
-                                    RoundedCornerShape(8.dp),
-                                ),
+                        // Header
+                        Text(
+                            text = "Agent Platform",
+                            color = Gray100,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 24.dp),
                         )
+
+                        Spacer(Modifier.height(8.dp))
+
+                        // Navigation items
+                        val tabs = listOf(
+                            DashboardTab to "Dashboard",
+                            ChatTab to "Chat",
+                            BoardTab to "Board",
+                            ActivityTab to "Activity",
+                            AgentsTab to "Agents",
+                        )
+
+                        tabs.forEach { (tab, label) ->
+                            FilterChip(
+                                selected = currentTab == tab,
+                                onClick = {
+                                    onTabSelected(tab)
+                                    drawerOpen = false
+                                },
+                                leadingIcon = {
+                                    tab.options.icon?.let { icon ->
+                                        Icon(
+                                            painter = icon,
+                                            contentDescription = label,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        text = label,
+                                        color = if (currentTab == tab) Indigo500 else Gray100,
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    containerColor = if (currentTab == tab) Gray800 else Color.Transparent,
+                                    labelColor = if (currentTab == tab) Indigo500 else Gray100,
+                                    iconColor = if (currentTab == tab) Indigo500 else Gray500,
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                            )
+                        }
                     }
                 }
-            }
-        },
-        modifier = modifier,
-    ) {
-        // Contenu principal avec aria-hidden quand le drawer est ouvert
-        Box(
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            // Bouton hamburger
-            IconButton(
-                onClick = { drawerOpen = true },
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Open menu",
-                    tint = Gray100,
-                )
             }
         }
     }
@@ -346,6 +363,7 @@ private fun DrawerContainer(content: @Composable ColumnScope.() -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewConversationDialog(
     showDialog: Boolean,
