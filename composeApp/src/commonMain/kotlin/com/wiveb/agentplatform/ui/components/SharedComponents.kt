@@ -5,17 +5,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wiveb.agentplatform.ui.navigation.*
 import com.wiveb.agentplatform.ui.theme.*
 
 @Composable
@@ -217,4 +222,305 @@ fun ContextBar(
             modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NavigationDrawer(
+    currentTab: Any,
+    onTabSelected: (Any) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var drawerOpen by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+
+    // Fermer le drawer quand le clavier mobile s'ouvre (input focus)
+    DisposableEffect(Unit) {
+        val handler = {
+            // Fermer le drawer si un input reçoit le focus
+            focusManager.clearFocus()
+            drawerOpen = false
+        }
+        // Note: Compose Multiplatform n'a pas d'événement beforefocus natif
+        // On utilise clearFocus() pour fermer le drawer
+        onDispose { }
+    }
+
+    ModalNavigationDrawer(
+        drawerState = rememberModalDrawerState(defaultDrawerPosition = DrawerValue.Closed),
+        drawerContent = {
+            DrawerContainer {
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(16.dp),
+                ) {
+                    // Header
+                    Text(
+                        text = "Agent Platform",
+                        color = Gray100,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 24.dp),
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    // Navigation items
+                    val tabs = listOf(
+                        DashboardTab to "Dashboard",
+                        ChatTab to "Chat",
+                        BoardTab to "Board",
+                        ActivityTab to "Activity",
+                        AgentsTab to "Agents",
+                    )
+
+                    tabs.forEach { (tab, label) ->
+                        NavigationDrawerItem(
+                            selected = currentTab == tab,
+                            onClick = {
+                                onTabSelected(tab)
+                                drawerOpen = false
+                            },
+                            icon = {
+                                tab.options.icon?.let { icon ->
+                                    Icon(
+                                        painter = icon,
+                                        contentDescription = label,
+                                        tint = if (currentTab == tab) Indigo500 else Gray500,
+                                    )
+                                }
+                            },
+                            label = {
+                                Text(
+                                    text = label,
+                                    color = if (currentTab == tab) Indigo500 else Gray500,
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (currentTab == tab) Gray800.copy(alpha = 0.5f) else Color.Transparent,
+                                    RoundedCornerShape(8.dp),
+                                ),
+                        )
+                    }
+                }
+            }
+        },
+        modifier = modifier,
+    ) {
+        // Contenu principal avec aria-hidden quand le drawer est ouvert
+        Box(
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            // Bouton hamburger
+            IconButton(
+                onClick = { drawerOpen = true },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Open menu",
+                    tint = Gray100,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DrawerContainer(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        color = Gray900,
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(280.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+fun NewConversationDialog(
+    showDialog: Boolean,
+    onDismiss: () -> Unit,
+    onCreate: (String, String?, String) -> Unit, // (agentId, initialMessage?, sessionKey)
+    isLoading: Boolean = false,
+    error: String? = null,
+    availableAgents: List<String> = listOf("main", "dev", "pm", "qa"),
+) {
+    if (!showDialog) return
+
+    var title by remember { mutableStateOf("") }
+    var initialMessage by remember { mutableStateOf("") }
+    var selectedAgent by remember { mutableStateOf("dev") }
+    val focusManager = LocalFocusManager.current
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!isLoading) onDismiss()
+        },
+        title = {
+            Text(
+                text = "New Conversation",
+                color = Gray100,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                // Agent selection
+                Text(
+                    text = "Select Agent",
+                    color = Gray400,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                ExposedDropdownMenuBox(
+                    expanded = false,
+                    onExpandedChange = {},
+                ) {
+                    var expanded by remember { mutableStateOf(false) }
+                    OutlinedTextField(
+                        value = selectedAgent.uppercase(),
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Indigo600,
+                            unfocusedBorderColor = Gray700,
+                            focusedTextColor = Gray100,
+                            unfocusedTextColor = Gray100,
+                        ),
+                        modifier = Modifier.menuAnchor(),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                    ) {
+                        availableAgents.forEach { agent ->
+                            DropdownMenuItem(
+                                text = { Text(agent.uppercase(), color = Gray100) },
+                                onClick = {
+                                    selectedAgent = agent
+                                    expanded = false
+                                },
+                                trailingIcon = {
+                                    if (selectedAgent == agent) {
+                                        Icon(Icons.Default.Check, null, tint = Indigo400)
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+
+                // Title field
+                Text(
+                    text = "Title *",
+                    color = Gray400,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    placeholder = { Text("Enter conversation title...", color = Gray500) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Indigo600,
+                        unfocusedBorderColor = Gray700,
+                        focusedTextColor = Gray100,
+                        unfocusedTextColor = Gray100,
+                        cursorColor = Indigo400,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+
+                // Initial message (optional)
+                Text(
+                    text = "Initial Message (optional)",
+                    color = Gray400,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                OutlinedTextField(
+                    value = initialMessage,
+                    onValueChange = { initialMessage = it },
+                    placeholder = { Text("Start the conversation...", color = Gray500) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Indigo600,
+                        unfocusedBorderColor = Gray700,
+                        focusedTextColor = Gray100,
+                        unfocusedTextColor = Gray100,
+                        cursorColor = Indigo400,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 4,
+                    shape = RoundedCornerShape(8.dp),
+                )
+
+                // Error message
+                error?.let { err ->
+                    Text(
+                        text = err,
+                        color = Red400,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    focusManager.clearFocus()
+                    if (title.isBlank()) {
+                        // Error will be shown in the dialog
+                    } else {
+                        onCreate(selectedAgent, if (initialMessage.isBlank()) null else initialMessage, "")
+                    }
+                },
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Gray100,
+                    )
+                } else {
+                    Text("Create", color = Gray100)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    if (!isLoading) {
+                        title = ""
+                        initialMessage = ""
+                        onDismiss()
+                    }
+                },
+                enabled = !isLoading,
+            ) {
+                Text("Cancel", color = Gray400)
+            }
+        },
+        containerColor = Gray900,
+        tonalElevation = 4.dp,
+    )
 }

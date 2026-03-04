@@ -43,6 +43,13 @@ class AgentPlatformApi(
         }.body()
     }
 
+    suspend fun createSession(agentId: String, title: String, initialMessage: String? = null): CreateSessionResult {
+        return client.post("$baseUrl/api/chat/sessions") {
+            contentType(ContentType.Application.Json)
+            setBody(CreateSessionRequest(agentId, title, initialMessage))
+        }.body()
+    }
+
     suspend fun sendMessage(sessionKey: String, message: String, thinking: String? = null): SendResult {
         return client.post("$baseUrl/api/chat/sessions/$sessionKey/send") {
             contentType(ContentType.Application.Json)
