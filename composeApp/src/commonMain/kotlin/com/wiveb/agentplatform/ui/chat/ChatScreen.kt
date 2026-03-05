@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -28,6 +29,7 @@ import com.mikepenz.markdown.m3.markdownColor
 import com.wiveb.agentplatform.data.api.AgentPlatformApi
 import com.wiveb.agentplatform.ui.components.*
 import com.wiveb.agentplatform.ui.theme.*
+import com.wiveb.agentplatform.ui.utils.TimeUtils
 import org.koin.compose.koinInject
 import kotlinx.coroutines.launch
 
@@ -160,6 +162,7 @@ private fun SessionItem(
     onClick: () -> Unit,
 ) {
     val agentId = session.agentId ?: session.key.split(":").getOrNull(1) ?: "main"
+    val timeAgo = TimeUtils.formatTimeAgo(session.updatedAt)
 
     Card(
         colors = CardDefaults.cardColors(containerColor = Gray900),
@@ -190,6 +193,12 @@ private fun SessionItem(
                     )
                 }
             }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = timeAgo,
+                color = Gray600,
+                fontSize = 10.sp,
+            )
         }
     }
 }
@@ -203,9 +212,12 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     val sending by model.sending.collectAsState()
     val thinking by model.thinking.collectAsState()
     var inputText by remember { mutableStateOf("") }
-    var showThinkingMenu by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+
+    // Context window info (placeholder - would need to be fetched from API)
+    val contextTokens by remember { mutableStateOf(12500) }
+    val maxContextTokens by remember { mutableStateOf(81920) }
 
     // Auto-scroll to bottom on new messages
     LaunchedEffect(messagesState) {
@@ -237,6 +249,27 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
                 navigationIconContentColor = Gray100,
             ),
         )
+
+        // Context bar
+        Surface(color = Gray900) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Default.Info,
+                    contentDescription = "Context",
+                    tint = Gray500,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                ContextBar(
+                    current = contextTokens,
+                    max = maxContextTokens,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
 
         // Messages
         Box(Modifier.weight(1f)) {
@@ -271,6 +304,41 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
             }
         }
 
+        // Thinking selector chips
+        Surface(color = Gray900) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                items(
+                    listOf(
+                        "off" to Gray600,
+                        "low" to Blue600,
+                        "medium" to Indigo600,
+                        "high" to Orange600,
+                    )
+                ) { (level, color) ->
+                    FilterChip(
+                        selected = thinking == level,
+                        onClick = { model.setThinking(level) },
+                        label = {
+                            Text(
+                                level.replaceFirstChar { it.uppercase() },
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = color,
+                            selectedLabelColor = Gray100,
+                            containerColor = Gray800,
+                            labelColor = Gray400,
+                        ),
+                    )
+                }
+            }
+        }
+
         // Input bar
         Surface(
             color = Gray900,
@@ -280,40 +348,6 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Thinking level button
-                Box {
-                    IconButton(onClick = { showThinkingMenu = true }) {
-                        Icon(
-                            Icons.Default.Psychology,
-                            contentDescription = "Thinking",
-                            tint = when (thinking) {
-                                "off" -> Gray500
-                                "low" -> Blue400
-                                "medium" -> Indigo400
-                                "high" -> Purple400
-                                else -> Gray500
-                            },
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showThinkingMenu,
-                        onDismissRequest = { showThinkingMenu = false },
-                    ) {
-                        listOf("off", "low", "medium", "high").forEach { level ->
-                            DropdownMenuItem(
-                                text = { Text(level.replaceFirstChar { it.uppercase() }) },
-                                onClick = {
-                                    model.setThinking(level)
-                                    showThinkingMenu = false
-                                },
-                                trailingIcon = {
-                                    if (thinking == level) Icon(Icons.Default.Check, null, tint = Indigo400)
-                                },
-                            )
-                        }
-                    }
-                }
-
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
@@ -360,42 +394,73 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
 @Composable
 private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
     val isUser = msg.role == "user"
+    val timeAgo = TimeUtils.formatTimeAgo(msg.createdAt)
+    var saved by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
-        Surface(
-            color = if (isUser) Indigo600 else Gray800,
-            shape = RoundedCornerShape(
-                topStart = 12.dp,
-                topEnd = 12.dp,
-                bottomStart = if (isUser) 12.dp else 4.dp,
-                bottomEnd = if (isUser) 4.dp else 12.dp,
-            ),
-            modifier = Modifier.widthIn(max = 300.dp),
+        Column(
+            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
         ) {
-            if (isUser) {
+            Surface(
+                color = if (isUser) Indigo600 else Gray800,
+                shape = RoundedCornerShape(
+                    topStart = 12.dp,
+                    topEnd = 12.dp,
+                    bottomStart = if (isUser) 12.dp else 4.dp,
+                    bottomEnd = if (isUser) 4.dp else 12.dp,
+                ),
+                modifier = Modifier.widthIn(max = (LocalConfiguration.current.screenWidthDp * 0.85f).dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                ) {
+                    if (isUser) {
+                        Text(
+                            text = msg.content,
+                            color = Gray100,
+                            fontSize = 14.sp,
+                        )
+                    } else {
+                        val content = msg.content
+                        if (content.isNotEmpty()) {
+                            Markdown(
+                                content = content,
+                                colors = markdownColor(text = Gray100),
+                            )
+                        } else {
+                            Text(
+                                text = "[${msg.role}]",
+                                color = Gray500,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // Timestamp and save button
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+            ) {
                 Text(
-                    text = msg.content,
-                    color = Gray100,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(10.dp),
+                    text = timeAgo,
+                    color = Gray600,
+                    fontSize = 10.sp,
                 )
-            } else {
-                val content = msg.content
-                if (content.isNotEmpty()) {
-                    Markdown(
-                        content = content,
-                        colors = markdownColor(text = Gray100),
-                        modifier = Modifier.padding(10.dp),
-                    )
-                } else {
-                    Text(
-                        text = "[${msg.role}]",
-                        color = Gray500,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(10.dp),
+                IconButton(
+                    onClick = { saved = !saved },
+                    modifier = Modifier.size(20.dp),
+                ) {
+                    Icon(
+                        imageVector = if (saved) Icons.Default.Check else Icons.Default.Bookmark,
+                        contentDescription = "Save to Knowledge Base",
+                        tint = if (saved) Emerald400 else Gray600,
+                        modifier = Modifier.size(14.dp),
                     )
                 }
             }
