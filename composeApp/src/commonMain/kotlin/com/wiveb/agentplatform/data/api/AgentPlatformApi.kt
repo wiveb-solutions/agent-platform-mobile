@@ -73,7 +73,7 @@ class AgentPlatformApi(
         }.body()
     }
 
-    suspend fun createSession(agentId: String, title: String, initialMessage: String? = null): CreateSessionResult {
+    suspend fun createSession(agentId: String, title: String, initialMessage: String? = null): SessionResponse {
         return client.post("$baseUrl/api/chat/sessions") {
             contentType(ContentType.Application.Json)
             setBody(CreateSessionRequest(agentId, title, initialMessage))
@@ -89,13 +89,6 @@ class AgentPlatformApi(
 
     suspend fun abortGeneration(sessionKey: String): SendResult {
         return client.post("$baseUrl/api/chat/sessions/$sessionKey/abort").body()
-    }
-
-    suspend fun createSession(agentId: String, title: String, initialMessage: String?): SessionResponse {
-        return client.post("$baseUrl/api/chat/sessions") {
-            contentType(ContentType.Application.Json)
-            setBody(CreateSessionRequest(agentId, title, initialMessage))
-        }.body()
     }
 
     // ── Board ──

@@ -95,20 +95,6 @@ data class SendResult(
     val error: String? = null,
 )
 
-@Serializable
-data class CreateSessionRequest(
-    val agentId: String,
-    val title: String,
-    val initialMessage: String? = null,
-)
-
-@Serializable
-data class CreateSessionResult(
-    val ok: Boolean = false,
-    val sessionKey: String? = null,
-    val error: String? = null,
-)
-
 // ── Board ──
 
 @Serializable
