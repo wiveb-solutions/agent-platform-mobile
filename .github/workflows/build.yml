@@ -19,14 +19,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Clear Gradle Cache
-        run: |
-          rm -rf ~/.gradle/caches
-          rm -rf ~/.gradle/wrapper
-          echo "Gradle cache cleared"
-
-      - name: Setup Gradle
+      - name: Setup Gradle (no cache)
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
+          gradle-home-cache-includes: ''
 
       - name: Build debug APK
         run: ./gradlew :composeApp:assembleDebug
