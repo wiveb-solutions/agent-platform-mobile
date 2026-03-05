@@ -34,6 +34,26 @@ import kotlinx.coroutines.launch
 @Composable
 fun ChatScreen() {
     var selectedSession by remember { mutableStateOf<String?>(null) }
+    var showNewConversationDialog by remember { mutableStateOf(false) }
+    val api = koinInject<AgentPlatformApi>()
+    val scope = rememberCoroutineScope()
+    val agentsState by api.agentsState.collectAsState()
+    val agents = (agentsState as? UiState.Success)?.data ?: emptyList()
+
+    // Handle new conversation creation
+    val onCreateConversation: (String, String) -> Unit = remember {
+        { agentId, initialMessage ->
+            scope.launch {
+                val title = if (initialMessage.isNotBlank()) initialMessage.take(30) else "New conversation"
+                try {
+                    api.createSession(agentId, title, if (initialMessage.isNotBlank()) initialMessage else null)
+                    showNewConversationDialog = false
+                } catch (e: Exception) {
+                    // Error handled by API
+                }
+            }
+        }
+    }
 
     if (selectedSession != null) {
         ChatDetailView(
@@ -43,13 +63,25 @@ fun ChatScreen() {
     } else {
         ChatListView(
             onSelectSession = { selectedSession = it },
+            onNewConversation = { showNewConversationDialog = true },
+        )
+    }
+
+    if (showNewConversationDialog) {
+        NewConversationDialog(
+            agents = agents,
+            onDismiss = { showNewConversationDialog = false },
+            onCreateConversation = onCreateConversation,
         )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChatListView(onSelectSession: (String) -> Unit) {
+private fun ChatListView(
+    onSelectSession: (String) -> Unit,
+    onNewConversation: () -> Unit,
+) {
     val model = koinInject<ChatListScreenModel>()
     val state by model.state.collectAsState()
     val filter by model.filter.collectAsState()
@@ -61,50 +93,63 @@ private fun ChatListView(onSelectSession: (String) -> Unit) {
 
     val agents = listOf(null, "main", "dev", "pm", "qa", "notaire")
 
-    Column(Modifier.fillMaxSize()) {
-        // Filter chips
-        LazyRow(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            items(agents) { agentId ->
-                FilterChip(
-                    selected = filter == agentId,
-                    onClick = { model.setFilter(agentId) },
-                    label = { Text(agentId?.uppercase() ?: "All", fontSize = 12.sp) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = if (agentId != null) AgentColors.badge(agentId) else Indigo600,
-                        selectedLabelColor = Gray100,
-                        containerColor = Gray800,
-                        labelColor = Gray400,
-                    ),
-                )
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            // Filter chips
+            LazyRow(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                items(agents) { agentId ->
+                    FilterChip(
+                        selected = filter == agentId,
+                        onClick = { model.setFilter(agentId) },
+                        label = { Text(agentId?.uppercase() ?: "All", fontSize = 12.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = if (agentId != null) AgentColors.badge(agentId) else Indigo600,
+                            selectedLabelColor = Gray100,
+                            containerColor = Gray800,
+                            labelColor = Gray400,
+                        ),
+                    )
+                }
             }
-        }
 
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = {
-                isRefreshing = true
-                model.load()
-            },
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            when (val s = state) {
-                is UiState.Loading -> LoadingIndicator(Modifier.fillMaxSize())
-                is UiState.Error -> ErrorCard(s.message, onRetry = { model.load() })
-                is UiState.Success -> {
-                    if (s.data.isEmpty()) {
-                        EmptyState("No sessions found")
-                    } else {
-                        LazyColumn(Modifier.fillMaxSize()) {
-                            items(s.data) { session ->
-                                SessionItem(session, onClick = { onSelectSession(session.key) })
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    isRefreshing = true
+                    model.load()
+                },
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                when (val s = state) {
+                    is UiState.Loading -> LoadingIndicator(Modifier.fillMaxSize())
+                    is UiState.Error -> ErrorCard(s.message, onRetry = { model.load() })
+                    is UiState.Success -> {
+                        if (s.data.isEmpty()) {
+                            EmptyState("No sessions found")
+                        } else {
+                            LazyColumn(Modifier.fillMaxSize()) {
+                                items(s.data) { session ->
+                                    SessionItem(session, onClick = { onSelectSession(session.key) })
+                                }
                             }
                         }
                     }
                 }
             }
+        }
+
+        // FAB for new conversation
+        FloatingActionButton(
+            onClick = onNewConversation,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            containerColor = Indigo600,
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "New Conversation", tint = Gray100)
         }
     }
 }

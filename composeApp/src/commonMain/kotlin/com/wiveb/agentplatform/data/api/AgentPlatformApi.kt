@@ -5,12 +5,38 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import com.wiveb.agentplatform.ui.components.UiState
 
 class AgentPlatformApi(
     private val client: HttpClient,
     private val baseUrlProvider: () -> String,
 ) {
     private val baseUrl: String get() = baseUrlProvider().trimEnd('/')
+
+    // ── Agents Cache ──
+    private val _agentsState = MutableStateFlow<UiState<List<Agent>>>(UiState.Loading)
+    val agentsState: StateFlow<UiState<List<Agent>>> = _agentsState.asStateFlow()
+
+    init {
+        loadAgents()
+    }
+
+    private fun loadAgents() {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+            try {
+                val agents = client.get("$baseUrl/api/agents").body<List<Agent>>()
+                _agentsState.value = UiState.Success(agents)
+            } catch (e: Exception) {
+                _agentsState.value = UiState.Error(e.message ?: "Failed to load agents")
+            }
+        }
+    }
 
     // ── Health ──
 
@@ -22,6 +48,10 @@ class AgentPlatformApi(
 
     suspend fun getAgents(): List<Agent> {
         return client.get("$baseUrl/api/agents").body()
+    }
+
+    fun getAgentsState(): UiState<List<Agent>> {
+        return _agentsState.value
     }
 
     suspend fun getAgentStatuses(): AgentStatusResponse {
@@ -52,6 +82,13 @@ class AgentPlatformApi(
 
     suspend fun abortGeneration(sessionKey: String): SendResult {
         return client.post("$baseUrl/api/chat/sessions/$sessionKey/abort").body()
+    }
+
+    suspend fun createSession(agentId: String, title: String, initialMessage: String?): SessionResponse {
+        return client.post("$baseUrl/api/chat/sessions") {
+            contentType(ContentType.Application.Json)
+            setBody(CreateSessionRequest(agentId, title, initialMessage))
+        }.body()
     }
 
     // ── Board ──
