@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, 'feat/*', 'fix/*']
   pull_request:
     branches: [main, master]
 
@@ -19,8 +19,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
+      - name: Setup Gradle (no cache)
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
+          gradle-home-cache-includes: ''
 
       - name: Build debug APK
         run: ./gradlew :composeApp:assembleDebug
