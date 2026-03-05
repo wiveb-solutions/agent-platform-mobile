@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, 'feat/*', 'fix/*']
   pull_request:
     branches: [main, master]
 
@@ -18,6 +18,12 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+
+      - name: Clear Gradle Cache
+        run: |
+          rm -rf ~/.gradle/caches
+          rm -rf ~/.gradle/wrapper
+          echo "Gradle cache cleared"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
