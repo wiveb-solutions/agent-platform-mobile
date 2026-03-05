@@ -18,6 +18,15 @@ class ChatListScreenModel(
     private val _filter = MutableStateFlow<String?>(null)
     val filter: StateFlow<String?> = _filter.asStateFlow()
 
+    private val _creating = MutableStateFlow(false)
+    val creating: StateFlow<Boolean> = _creating.asStateFlow()
+
+    private val _createError = MutableStateFlow<String?>(null)
+    val createError: StateFlow<String?> = _createError.asStateFlow()
+
+    private val _createdSessionKey = MutableStateFlow<String?>(null)
+    val createdSessionKey: StateFlow<String?> = _createdSessionKey.asStateFlow()
+
     init {
         load()
     }
@@ -37,5 +46,29 @@ class ChatListScreenModel(
                 _state.value = UiState.Error(e.message ?: "Failed to load sessions")
             }
         }
+    }
+
+    fun createSession(agentId: String, initialMessage: String?, sessionKey: String) {
+        screenModelScope.launch {
+            _creating.value = true
+            _createError.value = null
+            try {
+                val result = api.createSession(agentId, "New $agentId session", initialMessage)
+                if (result.ok && result.sessionKey != null) {
+                    _createdSessionKey.value = result.sessionKey
+                    load()
+                } else {
+                    _createError.value = result.error ?: "Failed to create session"
+                }
+            } catch (e: Exception) {
+                _createError.value = e.message ?: "Failed to create session"
+            } finally {
+                _creating.value = false
+            }
+        }
+    }
+
+    fun clearCreatedSession() {
+        _createdSessionKey.value = null
     }
 }

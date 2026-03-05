@@ -48,4 +48,25 @@ class BoardScreenModel(
             } catch (_: Exception) {}
         }
     }
+
+    private val _creating = MutableStateFlow(false)
+    val creating: StateFlow<Boolean> = _creating.asStateFlow()
+
+    private val _createError = MutableStateFlow<String?>(null)
+    val createError: StateFlow<String?> = _createError.asStateFlow()
+
+    fun createTask(agent: String, prompt: String) {
+        screenModelScope.launch {
+            _creating.value = true
+            _createError.value = null
+            try {
+                api.createTask(agent, prompt)
+                load()
+            } catch (e: Exception) {
+                _createError.value = e.message ?: "Failed to create task"
+            } finally {
+                _creating.value = false
+            }
+        }
+    }
 }

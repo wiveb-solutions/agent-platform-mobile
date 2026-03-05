@@ -1,5 +1,6 @@
 package com.wiveb.agentplatform.di
 
+import com.wiveb.agentplatform.data.PlatformSettings
 import com.wiveb.agentplatform.data.SettingsRepository
 import com.wiveb.agentplatform.data.api.AgentPlatformApi
 import com.wiveb.agentplatform.data.api.createHttpClient
@@ -12,13 +13,14 @@ import com.wiveb.agentplatform.ui.dashboard.DashboardScreenModel
 import com.wiveb.agentplatform.ui.settings.SettingsScreenModel
 import org.koin.dsl.module
 
-val appModule = module {
-    single { SettingsRepository() }
-    
+fun appModule(platformSettings: PlatformSettings) = module {
+    single { platformSettings }
+    single { SettingsRepository(get()) }
+
     // ⚠️ skipSslVerification = true pour dev local avec certificat auto-signé (mkcert)
     // À mettre à false en production!
     single { createHttpClient(skipSslVerification = true) }
-    
+
     single { AgentPlatformApi(get(), baseUrlProvider = { get<SettingsRepository>().getBaseUrl() }) }
     single { SseService(get(), baseUrlProvider = { get<SettingsRepository>().getBaseUrl() }) }
 

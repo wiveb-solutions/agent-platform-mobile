@@ -7,12 +7,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,24 +31,41 @@ import com.wiveb.agentplatform.ui.theme.*
 fun BoardScreen() {
     val model = koinInject<BoardScreenModel>()
     val state by model.state.collectAsState()
+    val creating by model.creating.collectAsState()
+    val createError by model.createError.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
     var selectedItem by remember { mutableStateOf<WorkItem?>(null) }
+    var showCreateDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state) {
         if (state !is UiState.Loading) isRefreshing = false
     }
 
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = {
-            isRefreshing = true
-            model.load()
-        },
-    ) {
-        when (val s = state) {
-            is UiState.Loading -> LoadingIndicator(Modifier.fillMaxSize())
-            is UiState.Error -> ErrorCard(s.message, onRetry = { model.load() })
-            is UiState.Success -> BoardContent(s.data, onItemClick = { selectedItem = it })
+    Box(Modifier.fillMaxSize()) {
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                isRefreshing = true
+                model.load()
+            },
+        ) {
+            when (val s = state) {
+                is UiState.Loading -> LoadingIndicator(Modifier.fillMaxSize())
+                is UiState.Error -> ErrorCard(s.message, onRetry = { model.load() })
+                is UiState.Success -> BoardContent(s.data, onItemClick = { selectedItem = it })
+            }
+        }
+
+        // FAB
+        FloatingActionButton(
+            onClick = { showCreateDialog = true },
+            containerColor = Indigo600,
+            contentColor = Gray100,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "New task")
         }
     }
 
@@ -64,6 +84,115 @@ fun BoardScreen() {
             },
         )
     }
+
+    // Create task dialog
+    if (showCreateDialog) {
+        CreateTaskDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreate = { agent, prompt ->
+                model.createTask(agent, prompt)
+                showCreateDialog = false
+            },
+            isLoading = creating,
+            error = createError,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CreateTaskDialog(
+    onDismiss: () -> Unit,
+    onCreate: (String, String) -> Unit,
+    isLoading: Boolean,
+    error: String?,
+) {
+    var selectedAgent by remember { mutableStateOf("dev") }
+    var prompt by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
+
+    AlertDialog(
+        onDismissRequest = { if (!isLoading) onDismiss() },
+        title = {
+            Text(
+                text = "New Task",
+                color = Gray100,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Agent", color = Gray400, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("dev", "pm", "qa").forEach { agent ->
+                        FilterChip(
+                            selected = selectedAgent == agent,
+                            onClick = { selectedAgent = agent },
+                            label = { Text(agent.uppercase(), fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = AgentColors.badge(agent),
+                                selectedLabelColor = Gray100,
+                                containerColor = Gray800,
+                                labelColor = Gray400,
+                            ),
+                        )
+                    }
+                }
+
+                Text("Task Description *", color = Gray400, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                OutlinedTextField(
+                    value = prompt,
+                    onValueChange = { prompt = it },
+                    placeholder = { Text("Describe the task...", color = Gray500) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Indigo600,
+                        unfocusedBorderColor = Gray700,
+                        focusedTextColor = Gray100,
+                        unfocusedTextColor = Gray100,
+                        cursorColor = Indigo400,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 4,
+                    shape = RoundedCornerShape(8.dp),
+                )
+
+                error?.let { err ->
+                    Text(err, color = Red400, fontSize = 12.sp)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    focusManager.clearFocus()
+                    if (prompt.isNotBlank()) onCreate(selectedAgent, prompt)
+                },
+                enabled = !isLoading && prompt.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Gray100,
+                    )
+                } else {
+                    Text("Create", color = Gray100)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { if (!isLoading) onDismiss() },
+                enabled = !isLoading,
+            ) {
+                Text("Cancel", color = Gray400)
+            }
+        },
+        containerColor = Gray900,
+        tonalElevation = 4.dp,
+    )
 }
 
 @Composable

@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import cafe.adriel.voyager.navigator.tab.CurrentTab
 import cafe.adriel.voyager.navigator.tab.TabNavigator
+import com.wiveb.agentplatform.data.PlatformSettings
 import com.wiveb.agentplatform.data.sse.SseService
 import com.wiveb.agentplatform.di.appModule
 import com.wiveb.agentplatform.ui.components.NavigationDrawer
@@ -25,8 +26,8 @@ import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun App() {
-    KoinApplication(application = { modules(appModule) }) {
+fun App(platformSettings: PlatformSettings) {
+    KoinApplication(application = { modules(appModule(platformSettings)) }) {
         AgentPlatformTheme {
             val sseService = koinInject<SseService>()
             var showSettings by remember { mutableStateOf(false) }

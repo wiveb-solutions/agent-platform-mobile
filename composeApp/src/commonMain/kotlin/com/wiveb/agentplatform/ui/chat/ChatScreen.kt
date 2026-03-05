@@ -29,7 +29,6 @@ import com.wiveb.agentplatform.data.api.AgentPlatformApi
 import com.wiveb.agentplatform.ui.components.*
 import com.wiveb.agentplatform.ui.theme.*
 import org.koin.compose.koinInject
-import kotlinx.coroutines.launch
 
 @Composable
 fun ChatScreen() {
@@ -53,60 +52,99 @@ private fun ChatListView(onSelectSession: (String) -> Unit) {
     val model = koinInject<ChatListScreenModel>()
     val state by model.state.collectAsState()
     val filter by model.filter.collectAsState()
+    val creating by model.creating.collectAsState()
+    val createError by model.createError.collectAsState()
+    val createdSessionKey by model.createdSessionKey.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
+    var showNewDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state) {
         if (state !is UiState.Loading) isRefreshing = false
     }
 
+    // Navigate to newly created session
+    LaunchedEffect(createdSessionKey) {
+        createdSessionKey?.let {
+            showNewDialog = false
+            onSelectSession(it)
+            model.clearCreatedSession()
+        }
+    }
+
     val agents = listOf(null, "main", "dev", "pm", "qa", "notaire")
 
-    Column(Modifier.fillMaxSize()) {
-        // Filter chips
-        LazyRow(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            items(agents) { agentId ->
-                FilterChip(
-                    selected = filter == agentId,
-                    onClick = { model.setFilter(agentId) },
-                    label = { Text(agentId?.uppercase() ?: "All", fontSize = 12.sp) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = if (agentId != null) AgentColors.badge(agentId) else Indigo600,
-                        selectedLabelColor = Gray100,
-                        containerColor = Gray800,
-                        labelColor = Gray400,
-                    ),
-                )
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            // Filter chips
+            LazyRow(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                items(agents) { agentId ->
+                    FilterChip(
+                        selected = filter == agentId,
+                        onClick = { model.setFilter(agentId) },
+                        label = { Text(agentId?.uppercase() ?: "All", fontSize = 12.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = if (agentId != null) AgentColors.badge(agentId) else Indigo600,
+                            selectedLabelColor = Gray100,
+                            containerColor = Gray800,
+                            labelColor = Gray400,
+                        ),
+                    )
+                }
             }
-        }
 
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = {
-                isRefreshing = true
-                model.load()
-            },
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            when (val s = state) {
-                is UiState.Loading -> LoadingIndicator(Modifier.fillMaxSize())
-                is UiState.Error -> ErrorCard(s.message, onRetry = { model.load() })
-                is UiState.Success -> {
-                    if (s.data.isEmpty()) {
-                        EmptyState("No sessions found")
-                    } else {
-                        LazyColumn(Modifier.fillMaxSize()) {
-                            items(s.data) { session ->
-                                SessionItem(session, onClick = { onSelectSession(session.key) })
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    isRefreshing = true
+                    model.load()
+                },
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                when (val s = state) {
+                    is UiState.Loading -> LoadingIndicator(Modifier.fillMaxSize())
+                    is UiState.Error -> ErrorCard(s.message, onRetry = { model.load() })
+                    is UiState.Success -> {
+                        if (s.data.isEmpty()) {
+                            EmptyState("No sessions found")
+                        } else {
+                            LazyColumn(Modifier.fillMaxSize()) {
+                                items(s.data) { session ->
+                                    SessionItem(session, onClick = { onSelectSession(session.key) })
+                                }
                             }
                         }
                     }
                 }
             }
         }
+
+        // FAB
+        FloatingActionButton(
+            onClick = { showNewDialog = true },
+            containerColor = Indigo600,
+            contentColor = Gray100,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "New conversation")
+        }
     }
+
+    // New conversation dialog
+    NewConversationDialog(
+        showDialog = showNewDialog,
+        onDismiss = { showNewDialog = false },
+        onCreate = { agentId, initialMessage, sessionKey ->
+            model.createSession(agentId, initialMessage, sessionKey)
+        },
+        isLoading = creating,
+        error = createError,
+        availableAgents = listOf("main", "dev", "pm", "qa", "notaire"),
+    )
 }
 
 @Composable
