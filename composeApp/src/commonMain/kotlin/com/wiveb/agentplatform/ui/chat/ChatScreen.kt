@@ -257,7 +257,7 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Default.Cpu,
+                    Icons.Default.Info,
                     contentDescription = "Context",
                     tint = Gray500,
                     modifier = Modifier.size(16.dp),
@@ -412,7 +412,7 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
                     bottomStart = if (isUser) 12.dp else 4.dp,
                     bottomEnd = if (isUser) 4.dp else 12.dp,
                 ),
-                modifier = Modifier.widthIn(max = 0.85 * (LocalConfiguration.current.screenWidthDp.dp)),
+                modifier = Modifier.widthIn(max = (LocalConfiguration.current.screenWidthDp * 0.85f).dp),
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
