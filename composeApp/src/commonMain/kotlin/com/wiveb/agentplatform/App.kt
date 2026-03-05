@@ -67,9 +67,9 @@ fun App() {
                 TabNavigator(DashboardTab) { tabNavigator ->
                     NavigationDrawer(
                         currentTab = tabNavigator.current,
-                        onTabSelected = { tab -> tabNavigator.current = tab as cafe.adriel.voyager.navigator.tab.Tab },
+                        onTabSelected = { tab: cafe.adriel.voyager.navigator.tab.Tab -> tabNavigator.current = tab },
                         modifier = Modifier.fillMaxSize(),
-                    ) { onOpenDrawer ->
+                    ) { onOpenDrawer: () -> Unit ->
                         Scaffold(
                             topBar = {
                                 TopAppBar(
