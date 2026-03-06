@@ -24,8 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mikepenz.markdown.m3.Markdown
-import com.mikepenz.markdown.m3.markdownColor
+import com.wiveb.agentplatform.ui.components.CollapsibleThinkingBlock
 import com.wiveb.agentplatform.data.api.AgentPlatformApi
 import com.wiveb.agentplatform.ui.components.*
 import com.wiveb.agentplatform.ui.theme.*
@@ -339,55 +338,23 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
             }
         }
 
-        // Input bar
-        Surface(
-            color = Gray900,
-            tonalElevation = 2.dp,
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedTextField(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    placeholder = { Text("Message...", color = Gray500) },
-                    modifier = Modifier.weight(1f),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Gray100,
-                        unfocusedTextColor = Gray100,
-                        focusedBorderColor = Indigo600,
-                        unfocusedBorderColor = Gray700,
-                        cursorColor = Indigo400,
-                    ),
-                    maxLines = 4,
-                    shape = RoundedCornerShape(12.dp),
-                )
-
-                Spacer(Modifier.width(4.dp))
-
-                if (sending) {
-                    IconButton(onClick = { model.abort() }) {
-                        Icon(Icons.Default.Stop, "Stop", tint = Red400)
-                    }
-                } else {
-                    IconButton(
-                        onClick = {
-                            if (inputText.isNotBlank()) {
-                                model.sendMessage(inputText)
-                                inputText = ""
-                            }
-                        },
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            "Send",
-                            tint = if (inputText.isNotBlank()) Indigo400 else Gray600,
-                        )
-                    }
+        // Input bar with icons
+        InputBar(
+            value = inputText,
+            onValueChange = { inputText = it },
+            onSend = {
+                if (inputText.isNotBlank()) {
+                    model.sendMessage(inputText)
+                    inputText = ""
                 }
-            }
-        }
+            },
+            onStop = { model.abort() },
+            isSending = sending,
+            onAttachmentClick = { /* TODO: Implement attachment */ },
+            onVoiceClick = { /* TODO: Implement voice input */ },
+            onWebSearchClick = { /* TODO: Implement web search */ },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -396,6 +363,14 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
     val isUser = msg.role == "user"
     val timeAgo = TimeUtils.formatTimeAgo(msg.createdAt)
     var saved by remember { mutableStateOf(false) }
+    
+    // Extract blocks if available
+    val blocks = msg.blocks ?: emptyList()
+    val thinkingBlocks = blocks.filterIsInstance<com.wiveb.agentplatform.data.model.ThinkingBlock>()
+    val textBlocks = blocks.filterIsInstance<com.wiveb.agentplatform.data.model.TextBlock>()
+    
+    // Fallback to content if no blocks
+    val hasThinking = thinkingBlocks.isNotEmpty() || (msg.content.isNotEmpty() && blocks.isEmpty())
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -404,6 +379,26 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
         Column(
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
         ) {
+            // Thinking block (collapsible with lightbulb icon)
+            if (!isUser && hasThinking) {
+                val thinkingContent = if (thinkingBlocks.isNotEmpty()) {
+                    thinkingBlocks.joinToString("\n\n") { it.thinking }
+                } else if (msg.content.isNotEmpty() && blocks.isEmpty()) {
+                    msg.content
+                } else {
+                    ""
+                }
+                
+                if (thinkingContent.isNotEmpty()) {
+                    CollapsibleThinkingBlock(
+                        content = thinkingContent,
+                        defaultOpen = true,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                }
+            }
+            
+            // Main message bubble
             Surface(
                 color = if (isUser) Indigo600 else Gray800,
                 shape = RoundedCornerShape(
@@ -424,12 +419,15 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
                             fontSize = 14.sp,
                         )
                     } else {
-                        val content = msg.content
+                        // Use text blocks or fallback to content
+                        val content = if (textBlocks.isNotEmpty()) {
+                            textBlocks.joinToString("\n\n") { it.text }
+                        } else {
+                            msg.content
+                        }
+                        
                         if (content.isNotEmpty()) {
-                            Markdown(
-                                content = content,
-                                colors = markdownColor(text = Gray100),
-                            )
+                            MarkdownRenderer(content = content)
                         } else {
                             Text(
                                 text = "[${msg.role}]",
