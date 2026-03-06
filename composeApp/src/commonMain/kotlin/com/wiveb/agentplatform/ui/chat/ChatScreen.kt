@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wiveb.agentplatform.ui.components.CollapsibleThinkingBlock
 import com.wiveb.agentplatform.data.api.AgentPlatformApi
 import com.wiveb.agentplatform.ui.components.*
 import com.wiveb.agentplatform.ui.theme.*
@@ -363,9 +364,6 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
     val timeAgo = TimeUtils.formatTimeAgo(msg.createdAt)
     var saved by remember { mutableStateOf(false) }
     
-    // Collapsible thinking block
-    var thinkingExpanded by remember { mutableStateOf(true) }
-    
     // Extract blocks if available
     val blocks = msg.blocks ?: emptyList()
     val thinkingBlocks = blocks.filterIsInstance<com.wiveb.agentplatform.data.model.ThinkingBlock>()
@@ -383,74 +381,21 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
         ) {
             // Thinking block (collapsible with lightbulb icon)
             if (!isUser && hasThinking) {
-                Surface(
-                    color = Violet900.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        // Header with lightbulb icon
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(
-                                Icons.Default.Lightbulb,
-                                contentDescription = "Thinking",
-                                tint = Violet400,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = "Thinking process",
-                                color = Violet400,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                            )
-                            Spacer(Modifier.weight(1f))
-                            IconButton(
-                                onClick = { thinkingExpanded = !thinkingExpanded },
-                                modifier = Modifier.size(24.dp),
-                            ) {
-                                Icon(
-                                    imageVector = if (thinkingExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                    contentDescription = if (thinkingExpanded) "Collapse" else "Expand",
-                                    tint = Violet400,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                            }
-                        }
-                        
-                        // Thinking content (expandable)
-                        if (thinkingExpanded) {
-                            Divider(color = Violet600.copy(alpha = 0.3f), thickness = 1.dp)
-                            Spacer(Modifier.height(8.dp))
-                            thinkingBlocks.forEach { thinkingBlock ->
-                                Text(
-                                    text = thinkingBlock.thinking,
-                                    color = Gray400,
-                                    fontSize = 12.sp,
-                                    style = LocalTextStyle.current.copy(
-                                        lineHeight = 18.sp,
-                                    ),
-                                )
-                                Spacer(Modifier.height(4.dp))
-                            }
-                            // Fallback to content if no blocks
-                            if (thinkingBlocks.isEmpty() && msg.content.isNotEmpty()) {
-                                Text(
-                                    text = msg.content,
-                                    color = Gray400,
-                                    fontSize = 12.sp,
-                                    style = LocalTextStyle.current.copy(
-                                        lineHeight = 18.sp,
-                                    ),
-                                )
-                            }
-                        }
-                    }
+                val thinkingContent = if (thinkingBlocks.isNotEmpty()) {
+                    thinkingBlocks.joinToString("\n\n") { it.thinking }
+                } else if (msg.content.isNotEmpty() && blocks.isEmpty()) {
+                    msg.content
+                } else {
+                    ""
                 }
-                Spacer(Modifier.height(6.dp))
+                
+                if (thinkingContent.isNotEmpty()) {
+                    CollapsibleThinkingBlock(
+                        content = thinkingContent,
+                        defaultOpen = true,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                }
             }
             
             // Main message bubble
