@@ -24,8 +24,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mikepenz.markdown.m3.Markdown
-import com.mikepenz.markdown.m3.markdownColor
 import com.wiveb.agentplatform.data.api.AgentPlatformApi
 import com.wiveb.agentplatform.ui.components.*
 import com.wiveb.agentplatform.ui.theme.*
@@ -339,55 +337,23 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
             }
         }
 
-        // Input bar
-        Surface(
-            color = Gray900,
-            tonalElevation = 2.dp,
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedTextField(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    placeholder = { Text("Message...", color = Gray500) },
-                    modifier = Modifier.weight(1f),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Gray100,
-                        unfocusedTextColor = Gray100,
-                        focusedBorderColor = Indigo600,
-                        unfocusedBorderColor = Gray700,
-                        cursorColor = Indigo400,
-                    ),
-                    maxLines = 4,
-                    shape = RoundedCornerShape(12.dp),
-                )
-
-                Spacer(Modifier.width(4.dp))
-
-                if (sending) {
-                    IconButton(onClick = { model.abort() }) {
-                        Icon(Icons.Default.Stop, "Stop", tint = Red400)
-                    }
-                } else {
-                    IconButton(
-                        onClick = {
-                            if (inputText.isNotBlank()) {
-                                model.sendMessage(inputText)
-                                inputText = ""
-                            }
-                        },
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            "Send",
-                            tint = if (inputText.isNotBlank()) Indigo400 else Gray600,
-                        )
-                    }
+        // Input bar with icons
+        InputBar(
+            value = inputText,
+            onValueChange = { inputText = it },
+            onSend = {
+                if (inputText.isNotBlank()) {
+                    model.sendMessage(inputText)
+                    inputText = ""
                 }
-            }
-        }
+            },
+            onStop = { model.abort() },
+            isSending = sending,
+            onAttachmentClick = { /* TODO: Implement attachment */ },
+            onVoiceClick = { /* TODO: Implement voice input */ },
+            onWebSearchClick = { /* TODO: Implement web search */ },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -396,6 +362,17 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
     val isUser = msg.role == "user"
     val timeAgo = TimeUtils.formatTimeAgo(msg.createdAt)
     var saved by remember { mutableStateOf(false) }
+    
+    // Collapsible thinking block
+    var thinkingExpanded by remember { mutableStateOf(true) }
+    
+    // Extract blocks if available
+    val blocks = msg.blocks ?: emptyList()
+    val thinkingBlocks = blocks.filterIsInstance<com.wiveb.agentplatform.data.model.ThinkingBlock>()
+    val textBlocks = blocks.filterIsInstance<com.wiveb.agentplatform.data.model.TextBlock>()
+    
+    // Fallback to content if no blocks
+    val hasThinking = thinkingBlocks.isNotEmpty() || (msg.content.isNotEmpty() && blocks.isEmpty())
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -404,6 +381,79 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
         Column(
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
         ) {
+            // Thinking block (collapsible with lightbulb icon)
+            if (!isUser && hasThinking) {
+                Surface(
+                    color = Violet900.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        // Header with lightbulb icon
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(
+                                Icons.Default.Lightbulb,
+                                contentDescription = "Thinking",
+                                tint = Violet400,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Thinking process",
+                                color = Violet400,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Spacer(Modifier.weight(1f))
+                            IconButton(
+                                onClick = { thinkingExpanded = !thinkingExpanded },
+                                modifier = Modifier.size(24.dp),
+                            ) {
+                                Icon(
+                                    imageVector = if (thinkingExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                    contentDescription = if (thinkingExpanded) "Collapse" else "Expand",
+                                    tint = Violet400,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+                        
+                        // Thinking content (expandable)
+                        if (thinkingExpanded) {
+                            Divider(color = Violet600.copy(alpha = 0.3f), thickness = 1.dp)
+                            Spacer(Modifier.height(8.dp))
+                            thinkingBlocks.forEach { thinkingBlock ->
+                                Text(
+                                    text = thinkingBlock.thinking,
+                                    color = Gray400,
+                                    fontSize = 12.sp,
+                                    style = LocalTextStyle.current.copy(
+                                        lineHeight = 18.sp,
+                                    ),
+                                )
+                                Spacer(Modifier.height(4.dp))
+                            }
+                            // Fallback to content if no blocks
+                            if (thinkingBlocks.isEmpty() && msg.content.isNotEmpty()) {
+                                Text(
+                                    text = msg.content,
+                                    color = Gray400,
+                                    fontSize = 12.sp,
+                                    style = LocalTextStyle.current.copy(
+                                        lineHeight = 18.sp,
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+            }
+            
+            // Main message bubble
             Surface(
                 color = if (isUser) Indigo600 else Gray800,
                 shape = RoundedCornerShape(
@@ -424,12 +474,15 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
                             fontSize = 14.sp,
                         )
                     } else {
-                        val content = msg.content
+                        // Use text blocks or fallback to content
+                        val content = if (textBlocks.isNotEmpty()) {
+                            textBlocks.joinToString("\n\n") { it.text }
+                        } else {
+                            msg.content
+                        }
+                        
                         if (content.isNotEmpty()) {
-                            Markdown(
-                                content = content,
-                                colors = markdownColor(text = Gray100),
-                            )
+                            MarkdownRenderer(content = content)
                         } else {
                             Text(
                                 text = "[${msg.role}]",

@@ -67,6 +67,47 @@ data class ChatMessage(
     val role: String,
     val content: String = "",
     val createdAt: String? = null,
+    val blocks: List<ContentBlock>? = null,
+    val usage: MessageUsage? = null,
+)
+
+@Serializable
+sealed class ContentBlock {
+    abstract val type: String
+}
+
+@Serializable
+data class TextBlock(
+    override val type: String = "text",
+    val text: String = "",
+) : ContentBlock()
+
+@Serializable
+data class ThinkingBlock(
+    override val type: String = "thinking",
+    val thinking: String = "",
+) : ContentBlock()
+
+@Serializable
+data class ToolCallBlock(
+    override val type: String = "toolCall",
+    val id: String = "",
+    val name: String = "",
+    val arguments: String = "",
+) : ContentBlock()
+
+@Serializable
+data class ToolResultBlock(
+    override val type: String = "toolResult",
+    val toolCallId: String = "",
+    val toolName: String = "",
+    val content: String = "",
+) : ContentBlock()
+
+@Serializable
+data class MessageUsage(
+    val inputTokens: Int = 0,
+    val outputTokens: Int = 0,
 )
 
 @Serializable

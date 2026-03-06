@@ -43,6 +43,11 @@ val Amber600 = Color(0xFFD97706)
 // Thinking/Tool colors
 val Violet400 = Color(0xFFA78BFA)
 val Violet600 = Color(0xFF9333EA)
+val Violet900 = Color(0xFF581C87)
+
+// Tool block colors
+val Amber900 = Color(0xFF78350F)
+val Emerald900 = Color(0xFF064E3B)
 
 object AgentColors {
     fun badge(agentId: String): Color = when (agentId) {
