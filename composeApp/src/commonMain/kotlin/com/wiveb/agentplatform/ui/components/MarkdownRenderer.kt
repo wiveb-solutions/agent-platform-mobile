@@ -57,7 +57,7 @@ fun MarkdownRenderer(
                     continue
                 }
                 inCodeBlock -> {
-                    // Inside code block
+                    // Inside code block - render as-is, ignore all other markdown
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -74,8 +74,8 @@ fun MarkdownRenderer(
                     i++
                     continue
                 }
-                // Detect table start (line with | that's not a code block)
-                line.trim().startsWith("|") && !inCodeBlock -> {
+                // Detect table start (line with | that's not in a code block)
+                line.trim().startsWith("|") -> {
                     if (!inTable) {
                         // Start collecting table lines
                         inTable = true
