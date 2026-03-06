@@ -2,26 +2,28 @@ package com.wiveb.agentplatform.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wiveb.agentplatform.ui.theme.*
 
 /**
  * Custom Markdown renderer using standard Compose components.
- * Parses basic markdown syntax: headers, bold, italic, code, links, lists, tables.
+ * Parses basic markdown syntax: headers, bold, italic, code, links, lists.
  */
 @Composable
 fun MarkdownRenderer(
@@ -33,8 +35,30 @@ fun MarkdownRenderer(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState()),
     ) {
+        var inCodeBlock = false
+        
         content.lines().forEach { line ->
             when {
+                line.startsWith("```") -> {
+                    inCodeBlock = !inCodeBlock
+                    // Skip the fence line itself
+                }
+                inCodeBlock -> {
+                    // Inside code block
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                    ) {
+                        Text(
+                            text = line,
+                            color = Gray300,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(vertical = 1.dp),
+                        )
+                    }
+                }
                 line.startsWith("# ") -> {
                     Text(
                         text = line.substring(2),
@@ -89,16 +113,6 @@ fun MarkdownRenderer(
                         modifier = Modifier.padding(vertical = 1.dp),
                     )
                 }
-                line.startsWith("```") -> {
-                    // Code block start/end - skip the fence lines
-                }
-                line.contains("```") -> {
-                    // Inline code block on same line as fence
-                }
-                isInsideCodeBlock(content, line) -> {
-                    // Inside code block
-                    CodeBlockLine(line)
-                }
                 line.isNotBlank() -> {
                     // Regular paragraph with inline formatting
                     MarkdownText(line)
@@ -108,114 +122,77 @@ fun MarkdownRenderer(
     }
 }
 
-// Track code block state
-private var inCodeBlock = false
-
-private fun isInsideCodeBlock(content: String, currentLine: String): Boolean {
-    if (currentLine.startsWith("```")) {
-        inCodeBlock = !inCodeBlock
-        return false
-    }
-    return inCodeBlock
-}
-
-@Composable
-private fun CodeBlockLine(line: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Gray900)
-            .padding(8.dp),
-    ) {
-        Text(
-            text = line,
-            color = Gray300,
-            fontSize = 12.sp,
-            fontFamily = FontFamily.Monospace,
-        )
-    }
-}
-
 @Composable
 private fun MarkdownText(text: String) {
-    // Parse inline markdown: **bold**, *italic*, `code`, [link](url)
     val annotatedString = buildAnnotatedString {
-        var index = 0
-        val lines = text.split("\n")
+        var pos = 0
         
-        lines.forEachIndexed { lineIndex, line ->
-            if (lineIndex > 0) append("\n")
-            
-            var pos = 0
-            while (pos < line.length) {
-                // Bold: **text** or __text__
-                if (line.startsWith("**", pos) || line.startsWith("__", pos)) {
-                    val endMarker = if (line[pos] == '*") "**" else "__"
-                    val end = line.indexOf(endMarker, pos + 2)
-                    if (end != -1) {
-                        append("\n") // Reset for span
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Gray100)) {
-                            append(line.substring(pos + 2, end))
-                        }
-                        pos = end + 2
-                        continue
-                    }
+        while (pos < text.length) {
+            // Bold: **text** or __text__
+            if (text.startsWith("**", pos) || text.startsWith("__", pos)) {
+                val endMarker = if (text[pos] == '*') "**" else "__"
+                val end = text.indexOf(endMarker, pos + 2)
+                if (end != -1) {
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Gray100))
+                    append(text.substring(pos + 2, end))
+                    pop()
+                    pos = end + 2
+                    continue
                 }
-                
-                // Italic: *text* or _text_
-                if (line.startsWith("*", pos) || line.startsWith("_", pos)) {
-                    val endMarker = if (line[pos] == '*') "*" else "_"
-                    val end = line.indexOf(endMarker, pos + 1)
-                    if (end != -1) {
-                        append("\n") // Reset for span
-                        withStyle(SpanStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, color = Gray100)) {
-                            append(line.substring(pos + 1, end))
-                        }
-                        pos = end + 1
-                        continue
-                    }
-                }
-                
-                // Code: `code`
-                if (line[pos] == '`') {
-                    val end = line.indexOf('`', pos + 1)
-                    if (end != -1) {
-                        append("\n") // Reset for span
-                        withStyle(SpanStyle(
-                            color = Gray300,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 12.sp,
-                        )) {
-                            append(line.substring(pos + 1, end))
-                        }
-                        pos = end + 1
-                        continue
-                    }
-                }
-                
-                // Link: [text](url)
-                if (line[pos] == '[') {
-                    val textEnd = line.indexOf(']', pos + 1)
-                    if (textEnd != -1) {
-                        val urlStart = line.indexOf('(', textEnd + 1)
-                        val urlEnd = line.indexOf(')', urlStart + 1)
-                        if (urlStart != -1 && urlEnd != -1) {
-                            val linkText = line.substring(pos + 1, textEnd)
-                            val url = line.substring(urlStart + 1, urlEnd)
-                            append("\n") // Reset for span
-                            withStyle(SpanStyle(color = Indigo400, textDecoration = androidx.compose.ui.text.TextDecoration.Underline)) {
-                                append(linkText)
-                            }
-                            pos = urlEnd + 1
-                            continue
-                        }
-                    }
-                }
-                
-                // Regular character
-                append(line[pos])
-                pos++
             }
+            
+            // Italic: *text* or _text_
+            if (text.startsWith("*", pos) || text.startsWith("_", pos)) {
+                val endMarker = if (text[pos] == '*') "*" else "_"
+                val end = text.indexOf(endMarker, pos + 1)
+                if (end != -1) {
+                    pushStyle(SpanStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, color = Gray100))
+                    append(text.substring(pos + 1, end))
+                    pop()
+                    pos = end + 1
+                    continue
+                }
+            }
+            
+            // Code: `code`
+            if (text[pos] == '`') {
+                val end = text.indexOf('`', pos + 1)
+                if (end != -1) {
+                    pushStyle(SpanStyle(
+                        color = Gray300,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp,
+                    ))
+                    append(text.substring(pos + 1, end))
+                    pop()
+                    pos = end + 1
+                    continue
+                }
+            }
+            
+            // Link: [text](url)
+            if (text[pos] == '[') {
+                val textEnd = text.indexOf(']', pos + 1)
+                if (textEnd != -1) {
+                    val urlStart = text.indexOf('(', textEnd + 1)
+                    val urlEnd = text.indexOf(')', urlStart + 1)
+                    if (urlStart != -1 && urlEnd != -1) {
+                        val linkText = text.substring(pos + 1, textEnd)
+                        pushStyle(SpanStyle(
+                            color = Indigo400,
+                            textDecoration = TextDecoration.Underline,
+                        ))
+                        append(linkText)
+                        pop()
+                        pos = urlEnd + 1
+                        continue
+                    }
+                }
+            }
+            
+            // Regular character
+            append(text[pos])
+            pos++
         }
     }
     
