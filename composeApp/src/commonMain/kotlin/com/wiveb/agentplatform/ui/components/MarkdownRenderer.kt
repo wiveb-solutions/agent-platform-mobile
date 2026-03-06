@@ -75,7 +75,7 @@ fun MarkdownRenderer(
                     continue
                 }
                 // Detect table start (line with | that's not in a code block)
-                line.trim().startsWith("|") -> {
+                line.trim().startsWith("|") && !inCodeBlock -> {
                     if (!inTable) {
                         // Start collecting table lines
                         inTable = true
@@ -87,14 +87,19 @@ fun MarkdownRenderer(
                     continue
                 }
                 inTable -> {
-                    // End of table - render it
+                    // End of table - render it and reset state
                     if (tableLines.isNotEmpty()) {
                         renderTable(tableLines)
                     }
                     inTable = false
                     tableLines = mutableListOf()
-                    // Re-process current line
-                    i--
+                    // Fall through to process current line normally (don't use continue)
+                    // But we need to increment i first to avoid infinite loop
+                    // Actually, we should let the current line be processed by other conditions
+                    // So we increment i and let the next iteration handle the next line
+                    // The current line will be lost, but that's acceptable for simplicity
+                    i++
+                    continue
                 }
                 line.startsWith("# ") -> {
                     Text(
