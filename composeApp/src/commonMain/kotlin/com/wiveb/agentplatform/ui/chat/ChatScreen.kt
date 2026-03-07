@@ -203,6 +203,7 @@ private fun SessionItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     val api = koinInject<AgentPlatformApi>()
