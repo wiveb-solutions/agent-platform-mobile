@@ -70,6 +70,7 @@ fun App() {
                         currentTab = tabNavigator.current,
                         onTabSelected = { tab: cafe.adriel.voyager.navigator.tab.Tab -> tabNavigator.current = tab },
                         modifier = Modifier.fillMaxSize(),
+                        topBarTitle = "Agent Platform",
                     ) { onOpenDrawer: () -> Unit ->
                         Scaffold(
                             topBar = {

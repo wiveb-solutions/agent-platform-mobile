@@ -203,7 +203,6 @@ private fun SessionItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     val api = koinInject<AgentPlatformApi>()
@@ -219,6 +218,11 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     // Context window info (placeholder - would need to be fetched from API)
     val contextTokens by remember { mutableStateOf(12500) }
     val maxContextTokens by remember { mutableStateOf(81920) }
+
+    // Extract session title from key (e.g., "agent:dev:web:uuid" -> "uuid")
+    val sessionTitle = remember(sessionKey) {
+        sessionKey.substringAfterLast(":").take(30)
+    }
 
     // Auto-scroll to bottom on new messages
     LaunchedEffect(messagesState) {
@@ -273,12 +277,12 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
 
         // Messages
         when (val s = messagesState) {
-            is UiState.Loading -> Box(Modifier.fillMaxSize()) { LoadingIndicator() }
-            is UiState.Error -> Box(Modifier.fillMaxSize()) { ErrorCard(s.message, onRetry = { model.loadMessages() }) }
+            is UiState.Loading -> Box(Modifier.weight(1f)) { LoadingIndicator() }
+            is UiState.Error -> Box(Modifier.weight(1f)) { ErrorCard(s.message, onRetry = { model.loadMessages() }) }
             is UiState.Success -> {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {

@@ -38,6 +38,7 @@ fun NavigationDrawer(
     currentTab: Tab,
     onTabSelected: (Tab) -> Unit,
     modifier: Modifier = Modifier,
+    topBarTitle: String? = null,
     content: @Composable (onOpenDrawer: () -> Unit) -> Unit
 ) {
     var drawerOpen by remember { mutableStateOf(false) }
