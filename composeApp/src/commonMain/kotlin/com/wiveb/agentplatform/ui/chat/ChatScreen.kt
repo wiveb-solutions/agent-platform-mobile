@@ -272,12 +272,12 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
 
         // Messages
         when (val s = messagesState) {
-            is UiState.Loading -> Box(Modifier.fillMaxSize()) { LoadingIndicator() }
-            is UiState.Error -> Box(Modifier.fillMaxSize()) { ErrorCard(s.message, onRetry = { model.loadMessages() }) }
+            is UiState.Loading -> Box(Modifier.weight(1f)) { LoadingIndicator() }
+            is UiState.Error -> Box(Modifier.weight(1f)) { ErrorCard(s.message, onRetry = { model.loadMessages() }) }
             is UiState.Success -> {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
