@@ -4,6 +4,7 @@ import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.wiveb.agentplatform.data.api.AgentPlatformApi
 import com.wiveb.agentplatform.data.model.ChatMessage
+import com.wiveb.agentplatform.ui.components.SidebarState
 import com.wiveb.agentplatform.ui.components.UiState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -24,6 +25,9 @@ class ChatDetailScreenModel(
     private val _thinking = MutableStateFlow("medium")
     val thinking: StateFlow<String> = _thinking.asStateFlow()
 
+    private val _sidebarState = MutableStateFlow(SidebarState(isExpanded = false))
+    val sidebarState: StateFlow<SidebarState> = _sidebarState.asStateFlow()
+
     private var pollJob: Job? = null
 
     init {
@@ -43,6 +47,10 @@ class ChatDetailScreenModel(
 
     fun setThinking(level: String) {
         _thinking.value = level
+    }
+
+    fun toggleSidebar() {
+        _sidebarState.value = _sidebarState.value.copy(isExpanded = !_sidebarState.value.isExpanded)
     }
 
     fun sendMessage(text: String) {

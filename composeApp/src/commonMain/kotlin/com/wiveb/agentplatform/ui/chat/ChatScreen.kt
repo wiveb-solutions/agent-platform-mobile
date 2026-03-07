@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -210,6 +211,7 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     val messagesState by model.messages.collectAsState()
     val sending by model.sending.collectAsState()
     val thinking by model.thinking.collectAsState()
+    val sidebarState by model.sidebarState.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -231,15 +233,24 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
         TopAppBar(
             title = {
                 Text(
-                    sessionKey.substringAfterLast(":").take(20),
+                    sessionKey.substringAfterLast(":").take(20).ifEmpty { "Nouvelle conversation" },
                     fontSize = 16.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             },
             navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                IconButton(onClick = {
+                    if (sidebarState.isExpanded) {
+                        model.toggleSidebar()
+                    } else {
+                        onBack()
+                    }
+                }) {
+                    Icon(
+                        imageVector = if (sidebarState.isExpanded) Icons.Default.Menu else Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = if (sidebarState.isExpanded) "Menu" else "Back"
+                    )
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
