@@ -229,12 +229,12 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        // Top bar
+        // Top bar - Single line, thinner (48px)
         TopAppBar(
             title = {
                 Text(
-                    sessionKey.substringAfterLast(":").take(20).ifEmpty { "Nouvelle conversation" },
-                    fontSize = 16.sp,
+                    sessionKey.substringAfterLast(":").take(20).ifEmpty { "Chat" },
+                    fontSize = 15.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -253,33 +253,23 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
                     )
                 }
             },
+            actions = {
+                IconButton(onClick = { model.toggleSidebar() }) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = Gray100,
+                    )
+                }
+            },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Gray900,
                 titleContentColor = Gray100,
                 navigationIconContentColor = Gray100,
+                actionIconContentColor = Gray100,
             ),
+            modifier = Modifier.height(48.dp),
         )
-
-        // Context bar
-        Surface(color = Gray900) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    Icons.Default.Info,
-                    contentDescription = "Context",
-                    tint = Gray500,
-                    modifier = Modifier.size(16.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                ContextBar(
-                    current = contextTokens,
-                    max = maxContextTokens,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
 
         // Messages
         when (val s = messagesState) {
