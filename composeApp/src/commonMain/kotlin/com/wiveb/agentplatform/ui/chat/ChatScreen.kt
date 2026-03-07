@@ -125,7 +125,7 @@ private fun ChatListView(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 when (val s = state) {
-                    is UiState.Loading -> LoadingIndicator(Modifier.fillMaxSize())
+                    is UiState.Loading -> Box(Modifier.fillMaxSize()) { LoadingIndicator() }
                     is UiState.Error -> ErrorCard(s.message, onRetry = { model.load() })
                     is UiState.Success -> {
                         if (s.data.isEmpty()) {
@@ -271,31 +271,31 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
         }
 
         // Messages
-        Box(Modifier.weight(1f)) {
-            when (val s = messagesState) {
-                is UiState.Loading -> LoadingIndicator(Modifier.fillMaxSize())
-                is UiState.Error -> ErrorCard(s.message, onRetry = { model.loadMessages() })
-                is UiState.Success -> {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        items(s.data) { msg ->
-                            MessageBubble(msg)
-                        }
-                        if (sending) {
-                            item {
-                                Row(Modifier.padding(8.dp)) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp,
-                                        color = Indigo400,
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Agent is thinking...", color = Gray400, fontSize = 12.sp)
-                                }
+        when (val s = messagesState) {
+            is UiState.Loading -> Box(Modifier.weight(1f)) { LoadingIndicator() }
+            is UiState.Error -> Box(Modifier.weight(1f)) { ErrorCard(s.message, onRetry = { model.loadMessages() }) }
+            is UiState.Success -> {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    items(s.data) { msg ->
+                        MessageBubble(msg)
+                    }
+                    if (sending) {
+                        item {
+                            Row(Modifier.padding(8.dp)) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Indigo400,
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("Agent is thinking...", color = Gray400, fontSize = 12.sp)
                             }
                         }
                     }
