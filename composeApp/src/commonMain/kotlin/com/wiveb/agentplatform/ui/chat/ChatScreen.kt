@@ -97,6 +97,41 @@ private fun ChatListView(
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
+            // TopAppBar
+            TopAppBar(
+                title = {
+                    Text(
+                        "Chat",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { /* TODO: Add navigation menu */ }) {
+                        Icon(
+                            Icons.Default.Menu,
+                            contentDescription = "Menu",
+                            tint = Gray100,
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { /* TODO: Add settings */ }) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = Gray100,
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Gray900,
+                    titleContentColor = Gray100,
+                    navigationIconContentColor = Gray100,
+                    actionIconContentColor = Gray100,
+                ),
+            )
+
             // Filter chips
             LazyRow(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
@@ -203,6 +238,7 @@ private fun SessionItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     val api = koinInject<AgentPlatformApi>()
