@@ -202,7 +202,6 @@ private fun SessionItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     val api = koinInject<AgentPlatformApi>()
@@ -218,6 +217,11 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     val contextTokens by remember { mutableStateOf(12500) }
     val maxContextTokens by remember { mutableStateOf(81920) }
 
+    // Extract session title from key (e.g., "agent:dev:web:uuid" -> "uuid")
+    val sessionTitle = remember(sessionKey) {
+        sessionKey.substringAfterLast(":").take(30)
+    }
+
     // Auto-scroll to bottom on new messages
     LaunchedEffect(messagesState) {
         val msgs = (messagesState as? UiState.Success)?.data ?: return@LaunchedEffect
@@ -227,46 +231,51 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        // Top bar
-        TopAppBar(
-            title = {
-                Text(
-                    sessionKey.substringAfterLast(":").take(20),
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Gray900,
-                titleContentColor = Gray100,
-                navigationIconContentColor = Gray100,
-            ),
-        )
-
-        // Context bar
+        // Context bar (compact, aligned with web)
         Surface(color = Gray900) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    Icons.Default.Info,
-                    contentDescription = "Context",
-                    tint = Gray500,
-                    modifier = Modifier.size(16.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                ContextBar(
-                    current = contextTokens,
-                    max = maxContextTokens,
+                // Session title badge (like web folder badge)
+                Text(
+                    text = sessionTitle,
+                    color = Gray300,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+                Spacer(Modifier.width(8.dp))
+                // Context progress indicator
+                if (contextTokens > 0) {
+                    Surface(
+                        color = Gray800,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.wrapContentSize(),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                tint = Gray500,
+                                modifier = Modifier.size(12.dp),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            LinearProgressIndicator(
+                                progress = { contextTokens.toFloat() / maxContextTokens },
+                                modifier = Modifier.width(40.dp).height(4.dp),
+                                color = if (contextTokens / maxContextTokens >= 0.8) Red400
+                                       else if (contextTokens / maxContextTokens >= 0.5) Yellow400
+                                       else Green400,
+                                trackColor = Gray700,
+                            )
+                        }
+                    }
+                }
             }
         }
 
