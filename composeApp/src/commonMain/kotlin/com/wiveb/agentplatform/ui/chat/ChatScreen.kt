@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -209,6 +210,7 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     val messagesState by model.messages.collectAsState()
     val sending by model.sending.collectAsState()
     val thinking by model.thinking.collectAsState()
+    val sidebarState by model.sidebarState.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -231,53 +233,47 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        // Context bar (compact, aligned with web)
-        Surface(color = Gray900) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // Session title badge (like web folder badge)
+        // Top bar - Single line, thinner (48px)
+        TopAppBar(
+            title = {
                 Text(
-                    text = sessionTitle,
-                    color = Gray300,
-                    fontSize = 12.sp,
+                    sessionKey.substringAfterLast(":").take(20).ifEmpty { "Chat" },
+                    fontSize = 15.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
                 )
-                Spacer(Modifier.width(8.dp))
-                // Context progress indicator
-                if (contextTokens > 0) {
-                    Surface(
-                        color = Gray800,
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.wrapContentSize(),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                Icons.Default.Info,
-                                contentDescription = null,
-                                tint = Gray500,
-                                modifier = Modifier.size(12.dp),
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            LinearProgressIndicator(
-                                progress = { contextTokens.toFloat() / maxContextTokens },
-                                modifier = Modifier.width(40.dp).height(4.dp),
-                                color = if (contextTokens / maxContextTokens >= 0.8) Red400
-                                       else if (contextTokens / maxContextTokens >= 0.5) Yellow400
-                                       else Green400,
-                                trackColor = Gray700,
-                            )
-                        }
+            },
+            navigationIcon = {
+                IconButton(onClick = {
+                    if (sidebarState.isExpanded) {
+                        model.toggleSidebar()
+                    } else {
+                        onBack()
                     }
+                }) {
+                    Icon(
+                        imageVector = if (sidebarState.isExpanded) Icons.Default.Menu else Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = if (sidebarState.isExpanded) "Menu" else "Back"
+                    )
                 }
-            }
-        }
+            },
+            actions = {
+                IconButton(onClick = { model.toggleSidebar() }) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = Gray100,
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Gray900,
+                titleContentColor = Gray100,
+                navigationIconContentColor = Gray100,
+                actionIconContentColor = Gray100,
+            ),
+            modifier = Modifier.height(48.dp),
+        )
 
         // Messages
         when (val s = messagesState) {
