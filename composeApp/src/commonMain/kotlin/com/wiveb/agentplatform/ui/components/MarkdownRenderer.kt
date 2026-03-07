@@ -3,8 +3,8 @@ package com.wiveb.agentplatform.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
@@ -40,10 +40,10 @@ fun MarkdownRenderer(
     var inTable = false
     var tableLines: MutableList<String> = mutableListOf()
     
-    Column(
+    LazyColumn(
         modifier = modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
+            .fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         var i = 0
         while (i < lines.size) {
@@ -58,18 +58,20 @@ fun MarkdownRenderer(
                 }
                 inCodeBlock -> {
                     // Inside code block - render as-is, ignore all other markdown
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp),
-                    ) {
-                        Text(
-                            text = line,
-                            color = Gray300,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(vertical = 1.dp),
-                        )
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp),
+                        ) {
+                            Text(
+                                text = line,
+                                color = Gray300,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(vertical = 1.dp),
+                            )
+                        }
                     }
                     i++
                     continue
@@ -89,7 +91,9 @@ fun MarkdownRenderer(
                 inTable -> {
                     // End of table - render it and reset state
                     if (tableLines.isNotEmpty()) {
-                        renderTable(tableLines)
+                        item {
+                            renderTable(tableLines)
+                        }
                     }
                     inTable = false
                     tableLines = mutableListOf()
@@ -102,72 +106,84 @@ fun MarkdownRenderer(
                     continue
                 }
                 line.startsWith("# ") -> {
-                    Text(
-                        text = line.substring(2),
-                        style = LocalTextStyle.current.copy(
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Gray100,
-                        ),
-                        modifier = Modifier.padding(vertical = 4.dp),
-                    )
+                    item {
+                        Text(
+                            text = line.substring(2),
+                            style = LocalTextStyle.current.copy(
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Gray100,
+                            ),
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                    }
                     i++
                     continue
                 }
                 line.startsWith("## ") -> {
-                    Text(
-                        text = line.substring(3),
-                        style = LocalTextStyle.current.copy(
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Gray100,
-                        ),
-                        modifier = Modifier.padding(vertical = 3.dp),
-                    )
+                    item {
+                        Text(
+                            text = line.substring(3),
+                            style = LocalTextStyle.current.copy(
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Gray100,
+                            ),
+                            modifier = Modifier.padding(vertical = 3.dp),
+                        )
+                    }
                     i++
                     continue
                 }
                 line.startsWith("### ") -> {
-                    Text(
-                        text = line.substring(4),
-                        style = LocalTextStyle.current.copy(
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Gray100,
-                        ),
-                        modifier = Modifier.padding(vertical = 2.dp),
-                    )
+                    item {
+                        Text(
+                            text = line.substring(4),
+                            style = LocalTextStyle.current.copy(
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Gray100,
+                            ),
+                            modifier = Modifier.padding(vertical = 2.dp),
+                        )
+                    }
                     i++
                     continue
                 }
                 line.startsWith("#### ") -> {
-                    Text(
-                        text = line.substring(5),
-                        style = LocalTextStyle.current.copy(
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Gray100,
-                        ),
-                        modifier = Modifier.padding(vertical = 2.dp),
-                    )
+                    item {
+                        Text(
+                            text = line.substring(5),
+                            style = LocalTextStyle.current.copy(
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Gray100,
+                            ),
+                            modifier = Modifier.padding(vertical = 2.dp),
+                        )
+                    }
                     i++
                     continue
                 }
                 line.startsWith("- ") || line.startsWith("* ") -> {
-                    Text(
-                        text = "• ${line.substring(2)}",
-                        style = LocalTextStyle.current.copy(
-                            fontSize = 14.sp,
-                            color = Gray100,
-                        ),
-                        modifier = Modifier.padding(vertical = 1.dp),
-                    )
+                    item {
+                        Text(
+                            text = "• ${line.substring(2)}",
+                            style = LocalTextStyle.current.copy(
+                                fontSize = 14.sp,
+                                color = Gray100,
+                            ),
+                            modifier = Modifier.padding(vertical = 1.dp),
+                        )
+                    }
                     i++
                     continue
                 }
                 line.isNotBlank() -> {
                     // Regular paragraph with inline formatting
-                    MarkdownText(line)
+                    item {
+                        MarkdownText(line)
+                    }
                     i++
                     continue
                 }
@@ -180,7 +196,9 @@ fun MarkdownRenderer(
         
         // Render any remaining table at end of content
         if (inTable && tableLines.isNotEmpty()) {
-            renderTable(tableLines)
+            item {
+                renderTable(tableLines)
+            }
         }
     }
 }
