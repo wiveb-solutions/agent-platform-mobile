@@ -39,167 +39,160 @@ fun MarkdownRenderer(
     var inCodeBlock = false
     var inTable = false
     var tableLines: MutableList<String> = mutableListOf()
+    val renderedElements = mutableListOf<@Composable () -> Unit>()
     
-    LazyColumn(
+    var i = 0
+    while (i < lines.size) {
+        val line = lines[i]
+        
+        when {
+            line.startsWith("```") -> {
+                inCodeBlock = !inCodeBlock
+                i++
+                continue
+            }
+            inCodeBlock -> {
+                renderedElements.add {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                    ) {
+                        Text(
+                            text = line,
+                            color = Gray300,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(vertical = 1.dp),
+                        )
+                    }
+                }
+                i++
+                continue
+            }
+            line.trim().startsWith("|") && !inCodeBlock -> {
+                if (!inTable) {
+                    inTable = true
+                    tableLines = mutableListOf(line)
+                } else {
+                    tableLines.add(line)
+                }
+                i++
+                continue
+            }
+            inTable -> {
+                if (tableLines.isNotEmpty()) {
+                    val currentTableLines = tableLines
+                    renderedElements.add { renderTable(currentTableLines) }
+                }
+                inTable = false
+                tableLines = mutableListOf()
+                i++
+                continue
+            }
+            line.startsWith("# ") -> {
+                val text = line.substring(2)
+                renderedElements.add {
+                    Text(
+                        text = text,
+                        style = LocalTextStyle.current.copy(
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Gray100,
+                        ),
+                        modifier = Modifier.padding(vertical = 4.dp),
+                    )
+                }
+                i++
+                continue
+            }
+            line.startsWith("## ") -> {
+                val text = line.substring(3)
+                renderedElements.add {
+                    Text(
+                        text = text,
+                        style = LocalTextStyle.current.copy(
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Gray100,
+                        ),
+                        modifier = Modifier.padding(vertical = 3.dp),
+                    )
+                }
+                i++
+                continue
+            }
+            line.startsWith("### ") -> {
+                val text = line.substring(4)
+                renderedElements.add {
+                    Text(
+                        text = text,
+                        style = LocalTextStyle.current.copy(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Gray100,
+                        ),
+                        modifier = Modifier.padding(vertical = 2.dp),
+                    )
+                }
+                i++
+                continue
+            }
+            line.startsWith("#### ") -> {
+                val text = line.substring(5)
+                renderedElements.add {
+                    Text(
+                        text = text,
+                        style = LocalTextStyle.current.copy(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Gray100,
+                        ),
+                        modifier = Modifier.padding(vertical = 2.dp),
+                    )
+                }
+                i++
+                continue
+            }
+            line.startsWith("- ") || line.startsWith("* ") -> {
+                val text = "• ${line.substring(2)}"
+                renderedElements.add {
+                    Text(
+                        text = text,
+                        style = LocalTextStyle.current.copy(
+                            fontSize = 14.sp,
+                            color = Gray100,
+                        ),
+                        modifier = Modifier.padding(vertical = 1.dp),
+                    )
+                }
+                i++
+                continue
+            }
+            line.isNotBlank() -> {
+                val text = line
+                renderedElements.add { MarkdownText(text) }
+                i++
+                continue
+            }
+            else -> {
+                i++
+                continue
+            }
+        }
+    }
+    
+    if (inTable && tableLines.isNotEmpty()) {
+        val currentTableLines = tableLines
+        renderedElements.add { renderTable(currentTableLines) }
+    }
+    
+    Column(
         modifier = modifier
             .fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        var i = 0
-        while (i < lines.size) {
-            val line = lines[i]
-            
-            when {
-                line.startsWith("```") -> {
-                    inCodeBlock = !inCodeBlock
-                    // Skip the fence line itself
-                    i++
-                    continue
-                }
-                inCodeBlock -> {
-                    // Inside code block - render as-is, ignore all other markdown
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp),
-                        ) {
-                            Text(
-                                text = line,
-                                color = Gray300,
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(vertical = 1.dp),
-                            )
-                        }
-                    }
-                    i++
-                    continue
-                }
-                // Detect table start (line with | that's not in a code block)
-                line.trim().startsWith("|") && !inCodeBlock -> {
-                    if (!inTable) {
-                        // Start collecting table lines
-                        inTable = true
-                        tableLines = mutableListOf(line)
-                    } else {
-                        tableLines.add(line)
-                    }
-                    i++
-                    continue
-                }
-                inTable -> {
-                    // End of table - render it and reset state
-                    if (tableLines.isNotEmpty()) {
-                        item {
-                            renderTable(tableLines)
-                        }
-                    }
-                    inTable = false
-                    tableLines = mutableListOf()
-                    // Fall through to process current line normally (don't use continue)
-                    // But we need to increment i first to avoid infinite loop
-                    // Actually, we should let the current line be processed by other conditions
-                    // So we increment i and let the next iteration handle the next line
-                    // The current line will be lost, but that's acceptable for simplicity
-                    i++
-                    continue
-                }
-                line.startsWith("# ") -> {
-                    item {
-                        Text(
-                            text = line.substring(2),
-                            style = LocalTextStyle.current.copy(
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Gray100,
-                            ),
-                            modifier = Modifier.padding(vertical = 4.dp),
-                        )
-                    }
-                    i++
-                    continue
-                }
-                line.startsWith("## ") -> {
-                    item {
-                        Text(
-                            text = line.substring(3),
-                            style = LocalTextStyle.current.copy(
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Gray100,
-                            ),
-                            modifier = Modifier.padding(vertical = 3.dp),
-                        )
-                    }
-                    i++
-                    continue
-                }
-                line.startsWith("### ") -> {
-                    item {
-                        Text(
-                            text = line.substring(4),
-                            style = LocalTextStyle.current.copy(
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Gray100,
-                            ),
-                            modifier = Modifier.padding(vertical = 2.dp),
-                        )
-                    }
-                    i++
-                    continue
-                }
-                line.startsWith("#### ") -> {
-                    item {
-                        Text(
-                            text = line.substring(5),
-                            style = LocalTextStyle.current.copy(
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Gray100,
-                            ),
-                            modifier = Modifier.padding(vertical = 2.dp),
-                        )
-                    }
-                    i++
-                    continue
-                }
-                line.startsWith("- ") || line.startsWith("* ") -> {
-                    item {
-                        Text(
-                            text = "• ${line.substring(2)}",
-                            style = LocalTextStyle.current.copy(
-                                fontSize = 14.sp,
-                                color = Gray100,
-                            ),
-                            modifier = Modifier.padding(vertical = 1.dp),
-                        )
-                    }
-                    i++
-                    continue
-                }
-                line.isNotBlank() -> {
-                    // Regular paragraph with inline formatting
-                    item {
-                        MarkdownText(line)
-                    }
-                    i++
-                    continue
-                }
-                else -> {
-                    i++
-                    continue
-                }
-            }
-        }
-        
-        // Render any remaining table at end of content
-        if (inTable && tableLines.isNotEmpty()) {
-            item {
-                renderTable(tableLines)
-            }
-        }
+        renderedElements.forEach { it() }
     }
 }
 
