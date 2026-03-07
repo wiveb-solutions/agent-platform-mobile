@@ -12,6 +12,7 @@ import com.wiveb.agentplatform.data.sse.SseService
 import com.wiveb.agentplatform.di.appModule
 import com.wiveb.agentplatform.ui.components.NavigationDrawer
 import com.wiveb.agentplatform.ui.navigation.*
+import com.wiveb.agentplatform.ui.navigation.ChatTab
 import com.wiveb.agentplatform.ui.settings.SettingsScreen
 import com.wiveb.agentplatform.ui.theme.AgentPlatformTheme
 import com.wiveb.agentplatform.ui.theme.Gray100
@@ -73,31 +74,33 @@ fun App() {
                     ) { onOpenDrawer: () -> Unit ->
                         Scaffold(
                             topBar = {
-                                TopAppBar(
-                                    title = {
-                                        Text(
-                                            "Agent Platform",
-                                            color = Gray100,
-                                        )
-                                    },
-                                    navigationIcon = {
-                                        IconButton(onClick = onOpenDrawer) {
-                                            Icon(
-                                                Icons.Default.Menu,
-                                                contentDescription = "Open menu",
-                                                tint = Gray100,
+                                if (tabNavigator.current != ChatTab) {
+                                    TopAppBar(
+                                        title = {
+                                            Text(
+                                                "Agent Platform",
+                                                color = Gray100,
                                             )
-                                        }
-                                    },
-                                    actions = {
-                                        IconButton(onClick = { showSettings = true }) {
-                                            Icon(Icons.Default.Settings, "Settings", tint = Gray500)
-                                        }
-                                    },
-                                    colors = TopAppBarDefaults.topAppBarColors(
-                                        containerColor = Gray900,
-                                    ),
-                                )
+                                        },
+                                        navigationIcon = {
+                                            IconButton(onClick = onOpenDrawer) {
+                                                Icon(
+                                                    Icons.Default.Menu,
+                                                    contentDescription = "Open menu",
+                                                    tint = Gray100,
+                                                )
+                                            }
+                                        },
+                                        actions = {
+                                            IconButton(onClick = { showSettings = true }) {
+                                                Icon(Icons.Default.Settings, "Settings", tint = Gray500)
+                                            }
+                                        },
+                                        colors = TopAppBarDefaults.topAppBarColors(
+                                            containerColor = Gray900,
+                                        ),
+                                    )
+                                }
                             },
                         ) { padding ->
                             Box(Modifier.fillMaxSize().padding(padding)) {
