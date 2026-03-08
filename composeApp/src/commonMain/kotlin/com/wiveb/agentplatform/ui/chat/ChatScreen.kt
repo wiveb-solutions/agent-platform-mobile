@@ -102,7 +102,7 @@ private fun ChatListView(
                 title = {
                     Text(
                         "Chat",
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                     )
                 },
@@ -130,6 +130,7 @@ private fun ChatListView(
                     navigationIconContentColor = Gray100,
                     actionIconContentColor = Gray100,
                 ),
+                modifier = Modifier.height(56.dp),
             )
 
             // Filter chips
