@@ -6,8 +6,12 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.RowScope
 import cafe.adriel.voyager.navigator.tab.CurrentTab
 import cafe.adriel.voyager.navigator.tab.TabNavigator
 import com.wiveb.agentplatform.data.sse.SseService
@@ -44,22 +48,10 @@ fun App() {
             if (showSettings) {
                 Scaffold(
                     topBar = {
-                        TopAppBar(
-                            title = { Text("Settings", fontSize = 16.sp) },
-                            navigationIcon = {
-                                IconButton(onClick = { showSettings = false }) {
-                                    Icon(
-                                        Icons.Default.ArrowBack,
-                                        contentDescription = "Back",
-                                        tint = Gray100,
-                                    )
-                                }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = Gray900,
-                                titleContentColor = Gray100,
-                            ),
-                            modifier = Modifier.height(56.dp),
+                        StickyTopAppBar(
+                            title = "Settings",
+                            navigationIcon = Icons.Default.ArrowBack,
+                            onNavigationClick = { showSettings = false },
                         )
                     },
                 ) { padding ->
@@ -78,32 +70,15 @@ fun App() {
                         Scaffold(
                             topBar = {
                                 if (tabNavigator.current != ChatTab) {
-                                    TopAppBar(
-                                        title = {
-                                            Text(
-                                                "Agent Platform",
-                                                color = Gray100,
-                                                fontSize = 16.sp,
-                                            )
-                                        },
-                                        navigationIcon = {
-                                            IconButton(onClick = onOpenDrawer) {
-                                                Icon(
-                                                    Icons.Default.Menu,
-                                                    contentDescription = "Open menu",
-                                                    tint = Gray100,
-                                                )
-                                            }
-                                        },
+                                    StickyTopAppBar(
+                                        title = "Agent Platform",
+                                        navigationIcon = Icons.Default.Menu,
+                                        onNavigationClick = onOpenDrawer,
                                         actions = {
                                             IconButton(onClick = { showSettings = true }) {
                                                 Icon(Icons.Default.Settings, "Settings", tint = Gray500)
                                             }
                                         },
-                                        colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = Gray900,
-                                        ),
-                                        modifier = Modifier.height(56.dp),
                                     )
                                 }
                             },
@@ -117,4 +92,47 @@ fun App() {
             }
         }
     }
+}
+
+/**
+ * TopAppBar sticky avec hauteur max 56px et layout optimisé
+ * Tous les éléments sur une seule ligne pour gagner de l'espace
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StickyTopAppBar(
+    title: String,
+    navigationIcon: ImageVector,
+    onNavigationClick: () -> Unit,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    TopAppBar(
+        title = {
+            Text(
+                title,
+                color = Gray100,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onNavigationClick) {
+                Icon(
+                    navigationIcon,
+                    contentDescription = "Navigation",
+                    tint = Gray100,
+                )
+            }
+        },
+        actions = actions,
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Gray900,
+            titleContentColor = Gray100,
+            navigationIconContentColor = Gray100,
+            actionIconContentColor = Gray100,
+        ),
+        modifier = Modifier.heightIn(max = 56.dp),
+    )
 }

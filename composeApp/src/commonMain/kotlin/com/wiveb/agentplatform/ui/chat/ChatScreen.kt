@@ -97,13 +97,13 @@ private fun ChatListView(
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            // TopAppBar
+            // TopAppBar - Sticky, single line (56px max)
             TopAppBar(
                 title = {
                     Text(
                         "Chat",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
                     )
                 },
                 navigationIcon = {
@@ -130,7 +130,7 @@ private fun ChatListView(
                     navigationIconContentColor = Gray100,
                     actionIconContentColor = Gray100,
                 ),
-                modifier = Modifier.height(56.dp),
+                modifier = Modifier.heightIn(max = 56.dp),
             )
 
             // Filter chips
@@ -270,12 +270,13 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        // Top bar - Single line, thinner (48px)
+        // Top bar - Sticky, single line (48px max)
         TopAppBar(
             title = {
                 Text(
                     sessionKey.substringAfterLast(":").take(20).ifEmpty { "Chat" },
                     fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -290,7 +291,8 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
                 }) {
                     Icon(
                         imageVector = if (sidebarState.isExpanded) Icons.Default.Menu else Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = if (sidebarState.isExpanded) "Menu" else "Back"
+                        contentDescription = if (sidebarState.isExpanded) "Menu" else "Back",
+                        tint = Gray100,
                     )
                 }
             },
@@ -309,7 +311,7 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
                 navigationIconContentColor = Gray100,
                 actionIconContentColor = Gray100,
             ),
-            modifier = Modifier.height(48.dp),
+            modifier = Modifier.heightIn(max = 48.dp),
         )
 
         // Messages
