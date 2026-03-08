@@ -6,6 +6,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.navigator.tab.CurrentTab
 import cafe.adriel.voyager.navigator.tab.TabNavigator
 import com.wiveb.agentplatform.data.sse.SseService
@@ -43,7 +45,7 @@ fun App() {
                 Scaffold(
                     topBar = {
                         TopAppBar(
-                            title = { Text("Settings") },
+                            title = { Text("Settings", fontSize = 16.sp) },
                             navigationIcon = {
                                 IconButton(onClick = { showSettings = false }) {
                                     Icon(
@@ -57,6 +59,7 @@ fun App() {
                                 containerColor = Gray900,
                                 titleContentColor = Gray100,
                             ),
+                            modifier = Modifier.height(56.dp),
                         )
                     },
                 ) { padding ->
@@ -80,6 +83,7 @@ fun App() {
                                             Text(
                                                 "Agent Platform",
                                                 color = Gray100,
+                                                fontSize = 16.sp,
                                             )
                                         },
                                         navigationIcon = {
@@ -99,6 +103,7 @@ fun App() {
                                         colors = TopAppBarDefaults.topAppBarColors(
                                             containerColor = Gray900,
                                         ),
+                                        modifier = Modifier.height(56.dp),
                                     )
                                 }
                             },
