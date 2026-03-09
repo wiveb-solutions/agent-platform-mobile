@@ -7,11 +7,6 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.navigator.tab.CurrentTab
 import cafe.adriel.voyager.navigator.tab.TabNavigator
 import com.wiveb.agentplatform.data.sse.SseService
@@ -49,10 +44,16 @@ fun App() {
                 if (showSettings) {
                     Scaffold(
                         topBar = {
-                            StickyTopAppBar(
-                                title = "Settings",
-                                navigationIcon = Icons.Default.ArrowBack,
-                                onNavigationClick = { showSettings = false },
+                            TopAppBar(
+                                title = { Text("Settings", color = Gray100) },
+                                navigationIcon = {
+                                    IconButton(onClick = { showSettings = false }) {
+                                        Icon(Icons.Default.ArrowBack, "Back", tint = Gray100)
+                                    }
+                                },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = Gray900,
+                                ),
                             )
                         },
                     ) { padding ->
@@ -70,8 +71,9 @@ fun App() {
                             modifier = Modifier.fillMaxSize(),
                             topBarTitle = "Agent Platform",
                         ) { onOpenDrawer ->
-                            // Make drawer opener available to child screens
-                            navState.openDrawer = onOpenDrawer
+                            SideEffect {
+                                navState.openDrawer = onOpenDrawer
+                            }
 
                             val isInChatDetail =
                                 tabNavigator.current == ChatTab &&
@@ -80,30 +82,47 @@ fun App() {
                             Scaffold(
                                 topBar = {
                                     if (isInChatDetail) {
-                                        StickyTopAppBar(
-                                            title = navState.chatDetailSessionKey!!
-                                                .substringAfterLast(":")
-                                                .take(20)
-                                                .ifEmpty { "Chat" },
-                                            navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                                            onNavigationClick = {
-                                                navState.chatDetailSessionKey = null
+                                        TopAppBar(
+                                            title = {
+                                                Text(
+                                                    navState.chatDetailSessionKey!!
+                                                        .substringAfterLast(":")
+                                                        .take(20)
+                                                        .ifEmpty { "Chat" },
+                                                    color = Gray100,
+                                                )
                                             },
-                                        )
-                                    } else {
-                                        StickyTopAppBar(
-                                            title = "Agent Platform",
-                                            navigationIcon = Icons.Default.Menu,
-                                            onNavigationClick = onOpenDrawer,
-                                            actions = {
-                                                IconButton(onClick = { showSettings = true }) {
+                                            navigationIcon = {
+                                                IconButton(onClick = {
+                                                    navState.chatDetailSessionKey = null
+                                                }) {
                                                     Icon(
-                                                        Icons.Default.Settings,
-                                                        "Settings",
-                                                        tint = Gray500,
+                                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                                        "Back",
+                                                        tint = Gray100,
                                                     )
                                                 }
                                             },
+                                            colors = TopAppBarDefaults.topAppBarColors(
+                                                containerColor = Gray900,
+                                            ),
+                                        )
+                                    } else {
+                                        TopAppBar(
+                                            title = { Text("Agent Platform", color = Gray100) },
+                                            navigationIcon = {
+                                                IconButton(onClick = onOpenDrawer) {
+                                                    Icon(Icons.Default.Menu, "Menu", tint = Gray100)
+                                                }
+                                            },
+                                            actions = {
+                                                IconButton(onClick = { showSettings = true }) {
+                                                    Icon(Icons.Default.Settings, "Settings", tint = Gray500)
+                                                }
+                                            },
+                                            colors = TopAppBarDefaults.topAppBarColors(
+                                                containerColor = Gray900,
+                                            ),
                                         )
                                     }
                                 },
@@ -118,43 +137,4 @@ fun App() {
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun StickyTopAppBar(
-    title: String,
-    navigationIcon: ImageVector,
-    onNavigationClick: () -> Unit,
-    actions: @Composable RowScope.() -> Unit = {},
-) {
-    TopAppBar(
-        title = {
-            Text(
-                title,
-                color = Gray100,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onNavigationClick) {
-                Icon(
-                    navigationIcon,
-                    contentDescription = "Navigation",
-                    tint = Gray100,
-                )
-            }
-        },
-        actions = actions,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Gray900,
-            titleContentColor = Gray100,
-            navigationIconContentColor = Gray100,
-            actionIconContentColor = Gray100,
-        ),
-        modifier = Modifier.heightIn(max = 56.dp),
-    )
 }
