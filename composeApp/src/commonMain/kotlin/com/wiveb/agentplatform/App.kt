@@ -77,7 +77,7 @@ fun App() {
                     ) { onOpenDrawer: () -> Unit ->
                         Scaffold(
                             topBar = {
-                                if (tabNavigator.current != ChatTab) {
+                                if (tabNavigator.current::class != ChatTab::class) {
                                     TopAppBar(
                                         title = {
                                             Text(
