@@ -2,6 +2,7 @@ package com.wiveb.agentplatform
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,14 +12,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.layout.RowScope
 import cafe.adriel.voyager.navigator.tab.CurrentTab
 import cafe.adriel.voyager.navigator.tab.TabNavigator
 import com.wiveb.agentplatform.data.sse.SseService
 import com.wiveb.agentplatform.di.appModule
 import com.wiveb.agentplatform.ui.components.NavigationDrawer
 import com.wiveb.agentplatform.ui.navigation.*
-import com.wiveb.agentplatform.ui.navigation.ChatTab
 import com.wiveb.agentplatform.ui.settings.SettingsScreen
 import com.wiveb.agentplatform.ui.theme.AgentPlatformTheme
 import com.wiveb.agentplatform.ui.theme.Gray100
@@ -37,6 +36,7 @@ fun App() {
         AgentPlatformTheme {
             val sseService = koinInject<SseService>()
             var showSettings by remember { mutableStateOf(false) }
+            val navState = remember { AppNavigationState() }
 
             LaunchedEffect(Unit) {
                 sseService.start(CoroutineScope(SupervisorJob() + Dispatchers.Default))
@@ -45,46 +45,72 @@ fun App() {
                 onDispose { sseService.stop() }
             }
 
-            if (showSettings) {
-                Scaffold(
-                    topBar = {
-                        StickyTopAppBar(
-                            title = "Settings",
-                            navigationIcon = Icons.Default.ArrowBack,
-                            onNavigationClick = { showSettings = false },
-                        )
-                    },
-                ) { padding ->
-                    Box(Modifier.fillMaxSize().padding(padding)) {
-                        SettingsScreen()
+            CompositionLocalProvider(LocalAppNavigationState provides navState) {
+                if (showSettings) {
+                    Scaffold(
+                        topBar = {
+                            StickyTopAppBar(
+                                title = "Settings",
+                                navigationIcon = Icons.Default.ArrowBack,
+                                onNavigationClick = { showSettings = false },
+                            )
+                        },
+                    ) { padding ->
+                        Box(Modifier.fillMaxSize().padding(padding)) {
+                            SettingsScreen()
+                        }
                     }
-                }
-            } else {
-                TabNavigator(DashboardTab) { tabNavigator ->
-                    NavigationDrawer(
-                        currentTab = tabNavigator.current,
-                        onTabSelected = { tab: cafe.adriel.voyager.navigator.tab.Tab -> tabNavigator.current = tab },
-                        modifier = Modifier.fillMaxSize(),
-                        topBarTitle = "Agent Platform",
-                    ) { onOpenDrawer: () -> Unit ->
-                        Scaffold(
-                            topBar = {
-                                if (tabNavigator.current::class != ChatTab::class) {
-                                    StickyTopAppBar(
-                                        title = "Agent Platform",
-                                        navigationIcon = Icons.Default.Menu,
-                                        onNavigationClick = onOpenDrawer,
-                                        actions = {
-                                            IconButton(onClick = { showSettings = true }) {
-                                                Icon(Icons.Default.Settings, "Settings", tint = Gray500)
-                                            }
-                                        },
-                                    )
-                                }
+                } else {
+                    TabNavigator(DashboardTab) { tabNavigator ->
+                        NavigationDrawer(
+                            currentTab = tabNavigator.current,
+                            onTabSelected = { tab: cafe.adriel.voyager.navigator.tab.Tab ->
+                                tabNavigator.current = tab
                             },
-                        ) { padding ->
-                            Box(Modifier.fillMaxSize().padding(padding)) {
-                                CurrentTab()
+                            modifier = Modifier.fillMaxSize(),
+                            topBarTitle = "Agent Platform",
+                        ) { onOpenDrawer ->
+                            // Make drawer opener available to child screens
+                            navState.openDrawer = onOpenDrawer
+
+                            val isInChatDetail =
+                                tabNavigator.current == ChatTab &&
+                                    navState.chatDetailSessionKey != null
+
+                            Scaffold(
+                                topBar = {
+                                    if (isInChatDetail) {
+                                        StickyTopAppBar(
+                                            title = navState.chatDetailSessionKey!!
+                                                .substringAfterLast(":")
+                                                .take(20)
+                                                .ifEmpty { "Chat" },
+                                            navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+                                            onNavigationClick = {
+                                                navState.chatDetailSessionKey = null
+                                            },
+                                        )
+                                    } else {
+                                        StickyTopAppBar(
+                                            title = "Agent Platform",
+                                            navigationIcon = Icons.Default.Menu,
+                                            onNavigationClick = onOpenDrawer,
+                                            actions = {
+                                                IconButton(onClick = { showSettings = true }) {
+                                                    Icon(
+                                                        Icons.Default.Settings,
+                                                        "Settings",
+                                                        tint = Gray500,
+                                                    )
+                                                }
+                                            },
+                                        )
+                                    }
+                                },
+                            ) { padding ->
+                                Box(Modifier.fillMaxSize().padding(padding)) {
+                                    CurrentTab()
+                                }
                             }
                         }
                     }
@@ -94,10 +120,6 @@ fun App() {
     }
 }
 
-/**
- * TopAppBar sticky avec hauteur max 56px et layout optimisé
- * Tous les éléments sur une seule ligne pour gagner de l'espace
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StickyTopAppBar(

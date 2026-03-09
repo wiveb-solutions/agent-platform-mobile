@@ -1,26 +1,20 @@
 package com.wiveb.agentplatform.ui.chat
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.wiveb.agentplatform.ui.components.CollapsibleThinkingBlock
 import com.wiveb.agentplatform.data.api.AgentPlatformApi
 import com.wiveb.agentplatform.ui.components.*
+import com.wiveb.agentplatform.ui.navigation.LocalAppNavigationState
 import com.wiveb.agentplatform.ui.theme.*
 import com.wiveb.agentplatform.ui.utils.TimeUtils
 import org.koin.compose.koinInject
@@ -35,14 +30,19 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ChatScreen() {
-    var selectedSession by remember { mutableStateOf<String?>(null) }
+    val navState = LocalAppNavigationState.current
+    val selectedSession = navState.chatDetailSessionKey
     var showNewConversationDialog by remember { mutableStateOf(false) }
     val api = koinInject<AgentPlatformApi>()
     val scope = rememberCoroutineScope()
     val agentsState by api.agentsState.collectAsState()
     val agents = (agentsState as? UiState.Success)?.data ?: emptyList()
 
-    // Handle new conversation creation
+    // Reset chat detail when leaving ChatTab
+    DisposableEffect(Unit) {
+        onDispose { navState.chatDetailSessionKey = null }
+    }
+
     val onCreateConversation: (String, String) -> Unit = remember {
         { agentId, initialMessage ->
             scope.launch {
@@ -50,7 +50,7 @@ fun ChatScreen() {
                 try {
                     api.createSession(agentId, title, if (initialMessage.isNotBlank()) initialMessage else null)
                     showNewConversationDialog = false
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Error handled by API
                 }
             }
@@ -58,13 +58,10 @@ fun ChatScreen() {
     }
 
     if (selectedSession != null) {
-        ChatDetailView(
-            sessionKey = selectedSession!!,
-            onBack = { selectedSession = null },
-        )
+        ChatDetailView(sessionKey = selectedSession)
     } else {
         ChatListView(
-            onSelectSession = { selectedSession = it },
+            onSelectSession = { navState.chatDetailSessionKey = it },
             onNewConversation = { showNewConversationDialog = true },
         )
     }
@@ -97,43 +94,7 @@ private fun ChatListView(
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            // TopAppBar - Sticky, single line (56px max)
-            TopAppBar(
-                title = {
-                    Text(
-                        "Chat",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { /* TODO: Add navigation menu */ }) {
-                        Icon(
-                            Icons.Default.Menu,
-                            contentDescription = "Menu",
-                            tint = Gray100,
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* TODO: Add settings */ }) {
-                        Icon(
-                            Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = Gray100,
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Gray900,
-                    titleContentColor = Gray100,
-                    navigationIconContentColor = Gray100,
-                    actionIconContentColor = Gray100,
-                ),
-                modifier = Modifier.heightIn(max = 56.dp),
-            )
-
-            // Filter chips
+            // Filter chips — no TopAppBar here, managed by App.kt
             LazyRow(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -159,7 +120,7 @@ private fun ChatListView(
                     isRefreshing = true
                     model.load()
                 },
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.weight(1f),
             ) {
                 when (val s = state) {
                     is UiState.Loading -> Box(Modifier.fillMaxSize()) { LoadingIndicator() }
@@ -241,25 +202,14 @@ private fun SessionItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
+private fun ChatDetailView(sessionKey: String) {
     val api = koinInject<AgentPlatformApi>()
     val model = remember(sessionKey) { ChatDetailScreenModel(api, sessionKey) }
     val messagesState by model.messages.collectAsState()
     val sending by model.sending.collectAsState()
     val thinking by model.thinking.collectAsState()
-    val sidebarState by model.sidebarState.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-
-    // Context window info (placeholder - would need to be fetched from API)
-    val contextTokens by remember { mutableStateOf(12500) }
-    val maxContextTokens by remember { mutableStateOf(81920) }
-
-    // Extract session title from key (e.g., "agent:dev:web:uuid" -> "uuid")
-    val sessionTitle = remember(sessionKey) {
-        sessionKey.substringAfterLast(":").take(30)
-    }
 
     // Auto-scroll to bottom on new messages
     LaunchedEffect(messagesState) {
@@ -270,51 +220,7 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        // Top bar - Sticky, single line (48px max)
-        TopAppBar(
-            title = {
-                Text(
-                    sessionKey.substringAfterLast(":").take(20).ifEmpty { "Chat" },
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = {
-                    if (sidebarState.isExpanded) {
-                        model.toggleSidebar()
-                    } else {
-                        onBack()
-                    }
-                }) {
-                    Icon(
-                        imageVector = if (sidebarState.isExpanded) Icons.Default.Menu else Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = if (sidebarState.isExpanded) "Menu" else "Back",
-                        tint = Gray100,
-                    )
-                }
-            },
-            actions = {
-                IconButton(onClick = { model.toggleSidebar() }) {
-                    Icon(
-                        Icons.Default.Settings,
-                        contentDescription = "Settings",
-                        tint = Gray100,
-                    )
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Gray900,
-                titleContentColor = Gray100,
-                navigationIconContentColor = Gray100,
-                actionIconContentColor = Gray100,
-            ),
-            modifier = Modifier.heightIn(max = 48.dp),
-        )
-
-        // Messages
+        // Messages — no TopAppBar here, managed by App.kt
         when (val s = messagesState) {
             is UiState.Loading -> Box(Modifier.weight(1f)) { LoadingIndicator() }
             is UiState.Error -> Box(Modifier.weight(1f)) { ErrorCard(s.message, onRetry = { model.loadMessages() }) }
@@ -380,7 +286,7 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
             }
         }
 
-        // Input bar with icons
+        // Input bar
         InputBar(
             value = inputText,
             onValueChange = { inputText = it },
@@ -392,9 +298,6 @@ private fun ChatDetailView(sessionKey: String, onBack: () -> Unit) {
             },
             onStop = { model.abort() },
             isSending = sending,
-            onAttachmentClick = { /* TODO: Implement attachment */ },
-            onVoiceClick = { /* TODO: Implement voice input */ },
-            onWebSearchClick = { /* TODO: Implement web search */ },
             modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -405,12 +308,12 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
     val isUser = msg.role == "user"
     val timeAgo = TimeUtils.formatTimeAgo(msg.createdAt)
     var saved by remember { mutableStateOf(false) }
-    
+
     // Extract blocks if available
     val blocks = msg.blocks ?: emptyList()
     val thinkingBlocks = blocks.filterIsInstance<com.wiveb.agentplatform.data.model.ThinkingBlock>()
     val textBlocks = blocks.filterIsInstance<com.wiveb.agentplatform.data.model.TextBlock>()
-    
+
     // Fallback to content if no blocks
     val hasThinking = thinkingBlocks.isNotEmpty() || (msg.content.isNotEmpty() && blocks.isEmpty())
 
@@ -430,7 +333,7 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
                 } else {
                     ""
                 }
-                
+
                 if (thinkingContent.isNotEmpty()) {
                     CollapsibleThinkingBlock(
                         content = thinkingContent,
@@ -439,7 +342,7 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
                     Spacer(Modifier.height(6.dp))
                 }
             }
-            
+
             // Main message bubble
             Surface(
                 color = if (isUser) Indigo600 else Gray800,
@@ -467,7 +370,7 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
                         } else {
                             msg.content
                         }
-                        
+
                         if (content.isNotEmpty()) {
                             MarkdownRenderer(content = content)
                         } else {
@@ -480,7 +383,7 @@ private fun MessageBubble(msg: com.wiveb.agentplatform.data.model.ChatMessage) {
                     }
                 }
             }
-            
+
             // Timestamp and save button
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
