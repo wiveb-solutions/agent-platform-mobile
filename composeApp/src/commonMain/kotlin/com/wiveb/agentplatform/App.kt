@@ -69,7 +69,7 @@ fun App() {
                     ) { onOpenDrawer: () -> Unit ->
                         Scaffold(
                             topBar = {
-                                if (tabNavigator.current != ChatTab) {
+                                if (tabNavigator.current::class != ChatTab::class) {
                                     StickyTopAppBar(
                                         title = "Agent Platform",
                                         navigationIcon = Icons.Default.Menu,
