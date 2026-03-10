@@ -274,3 +274,19 @@ data class AgentStat(
     val commits: Int = 0,
     val prs: Int = 0,
 )
+
+// ── Projects (Plane) ──
+
+@Serializable
+data class Project(
+    val id: String,
+    val identifier: String,
+    val name: String,
+    val description: String? = null,
+    val createdAt: String? = null,
+)
+
+@Serializable
+data class ProjectsResponse(
+    val projects: List<Project> = emptyList(),
+)

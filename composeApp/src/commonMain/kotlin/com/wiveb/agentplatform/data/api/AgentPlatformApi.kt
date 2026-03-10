@@ -156,4 +156,10 @@ class AgentPlatformApi(
     suspend fun getAgentStats(): AgentStatsResponse {
         return client.get("$baseUrl/api/metrics/agent-stats").body()
     }
+
+    // ── Projects ──
+
+    suspend fun getProjects(): List<Project> {
+        return client.get("$baseUrl/api/projects").body()
+    }
 }
