@@ -12,6 +12,7 @@ import com.wiveb.agentplatform.ui.agents.AgentsScreen
 import com.wiveb.agentplatform.ui.board.BoardScreen
 import com.wiveb.agentplatform.ui.chat.ChatScreen
 import com.wiveb.agentplatform.ui.dashboard.DashboardScreen
+import com.wiveb.agentplatform.ui.projects.ProjectsScreen
 
 object DashboardTab : Tab {
     private fun readResolve(): Any = DashboardTab
@@ -90,5 +91,21 @@ object AgentsTab : Tab {
     @Composable
     override fun Content() {
         AgentsScreen()
+    }
+}
+
+object ProjectsTab : Tab {
+    private fun readResolve(): Any = ProjectsTab
+
+    override val options: TabOptions
+        @Composable
+        get() {
+            val icon = rememberVectorPainter(Icons.Default.Folder)
+            return remember { TabOptions(index = 5u, title = "Projects", icon = icon) }
+        }
+
+    @Composable
+    override fun Content() {
+        ProjectsScreen()
     }
 }

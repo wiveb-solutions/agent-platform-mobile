@@ -122,7 +122,7 @@ private fun NavigationDrawerContent(
             DrawerItem(
                 title = "Projects",
                 icon = Icons.Default.Folder,
-                tab = com.wiveb.agentplatform.ui.navigation.BoardTab
+                tab = com.wiveb.agentplatform.ui.navigation.ProjectsTab
             ),
             DrawerItem(
                 title = "Tasks",
