@@ -135,11 +135,6 @@ private fun NavigationDrawerContent(
                 tab = com.wiveb.agentplatform.ui.navigation.AgentsTab
             ),
             DrawerItem(
-                title = "Projects",
-                icon = Icons.Default.Folder,
-                tab = com.wiveb.agentplatform.ui.navigation.ProjectsTab
-            ),
-            DrawerItem(
                 title = "CI/CD",
                 icon = Icons.Default.Build,
                 tab = com.wiveb.agentplatform.ui.navigation.ActivityTab

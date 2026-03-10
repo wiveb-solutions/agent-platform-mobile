@@ -286,7 +286,3 @@ data class Project(
     val createdAt: String? = null,
 )
 
-@Serializable
-data class ProjectsResponse(
-    val projects: List<Project> = emptyList(),
-)
