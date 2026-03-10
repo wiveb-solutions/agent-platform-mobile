@@ -1,6 +1,5 @@
 package com.wiveb.agentplatform.ui.agents
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,31 +19,38 @@ import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import com.wiveb.agentplatform.data.model.Agent
 import com.wiveb.agentplatform.ui.components.*
+import com.wiveb.agentplatform.ui.navigation.LocalAppNavigationState
 import com.wiveb.agentplatform.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgentsScreen() {
     val model = koinInject<AgentsScreenModel>()
+    val navState = LocalAppNavigationState.current
     val state by model.state.collectAsState()
     val expanded by model.expanded.collectAsState()
-    val selectedAgent by model.selectedAgent.collectAsState()
     val searchQuery by model.searchQuery.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
+
+    // Reset agent detail when leaving AgentsTab
+    DisposableEffect(Unit) {
+        onDispose {
+            navState.agentDetailId = null
+            navState.agentDetailName = null
+        }
+    }
 
     LaunchedEffect(state) {
         if (state !is UiState.Loading) isRefreshing = false
     }
 
     // Show agent detail if selected
-    if (selectedAgent != null && state is UiState.Success) {
+    val selectedAgentId = navState.agentDetailId
+    if (selectedAgentId != null && state is UiState.Success) {
         val agents = (state as UiState.Success).data
-        val agent = agents.find { it.id == selectedAgent }
+        val agent = agents.find { it.id == selectedAgentId }
         if (agent != null) {
-            AgentDetailView(
-                agent = agent,
-                onBack = { model.selectAgent(null) },
-            )
+            AgentDetailView(agent = agent)
             return
         }
     }
@@ -117,7 +123,10 @@ fun AgentsScreen() {
                                     agent = agent,
                                     isExpanded = agent.id in expanded,
                                     onToggle = { model.toggleExpanded(agent.id) },
-                                    onViewDetails = { model.selectAgent(agent.id) },
+                                    onViewDetails = {
+                                        navState.agentDetailId = agent.id
+                                        navState.agentDetailName = agent.name
+                                    },
                                 )
                             }
                         }
@@ -217,43 +226,13 @@ private fun AgentCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AgentDetailView(agent: Agent, onBack: () -> Unit) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        StatusDot(agent.status, size = 10)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            agent.name,
-                            color = AgentColors.text(agent.id),
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        AgentBadge(agent.id)
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, null, tint = Gray100)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Gray900,
-                    titleContentColor = Gray100,
-                    navigationIconContentColor = Gray100,
-                ),
-            )
-        },
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
+private fun AgentDetailView(agent: Agent) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
             // Status section
             item {
                 Card(
@@ -331,7 +310,7 @@ private fun AgentDetailView(agent: Agent, onBack: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text("Token Usage", color = Gray400, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                            Icon(Icons.Default.Token, null, tint = Violet400, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.DataUsage, null, tint = Violet400, modifier = Modifier.size(16.dp))
                         }
                         Spacer(Modifier.height(12.dp))
                         if (agent.tokenUsage != null) {
@@ -404,7 +383,6 @@ private fun AgentDetailView(agent: Agent, onBack: () -> Unit) {
                         }
                     }
                 }
-            }
         }
     }
 }

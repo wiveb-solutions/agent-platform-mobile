@@ -18,9 +18,6 @@ class AgentsScreenModel(
     private val _expanded = MutableStateFlow<Set<String>>(emptySet())
     val expanded: StateFlow<Set<String>> = _expanded.asStateFlow()
 
-    private val _selectedAgent = MutableStateFlow<String?>(null)
-    val selectedAgent: StateFlow<String?> = _selectedAgent.asStateFlow()
-
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
@@ -44,10 +41,6 @@ class AgentsScreenModel(
         _expanded.update { current ->
             if (agentId in current) current - agentId else current + agentId
         }
-    }
-
-    fun selectAgent(agentId: String?) {
-        _selectedAgent.value = agentId
     }
 
     fun setSearchQuery(query: String) {
