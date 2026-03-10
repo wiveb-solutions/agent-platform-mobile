@@ -7,6 +7,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -30,6 +33,7 @@ fun BoardScreen() {
     val state by model.state.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
     var selectedItem by remember { mutableStateOf<WorkItem?>(null) }
+    var selectedFilter by remember { mutableStateOf<String>("All") }
 
     LaunchedEffect(state) {
         if (state !is UiState.Loading) isRefreshing = false
@@ -45,7 +49,14 @@ fun BoardScreen() {
         when (val s = state) {
             is UiState.Loading -> LoadingIndicator(Modifier.fillMaxSize())
             is UiState.Error -> ErrorCard(s.message, onRetry = { model.load() })
-            is UiState.Success -> BoardContent(s.data, onItemClick = { selectedItem = it })
+            is UiState.Success -> {
+                BoardContent(
+                    columns = s.data,
+                    selectedFilter = selectedFilter,
+                    onFilterSelected = { selectedFilter = it },
+                    onItemClick = { selectedItem = it }
+                )
+            }
         }
     }
 
@@ -67,115 +78,177 @@ fun BoardScreen() {
 }
 
 @Composable
-private fun BoardContent(columns: List<BoardColumn>, onItemClick: (WorkItem) -> Unit) {
-    LazyRow(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        items(columns.filter { it.state != "Cancelled" }) { column ->
-            BoardColumnView(column, onItemClick)
+private fun BoardContent(
+    columns: List<BoardColumn>,
+    selectedFilter: String,
+    onFilterSelected: (String) -> Unit,
+    onItemClick: (WorkItem) -> Unit
+) {
+    // Flatten all items from columns
+    val allItems = columns.flatMap { it.items }
+    val filteredItems = if (selectedFilter == "All") {
+        allItems
+    } else {
+        allItems.filter { item ->
+            columns.find { col -> col.items.contains(item) }?.state == selectedFilter
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Filter chips
+        LazyRow(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            val filters = listOf("All", "Backlog", "Todo", "In Progress", "Done")
+            items(filters) { filter ->
+                FilterChip(
+                    filter = filter,
+                    isSelected = selectedFilter == filter,
+                    onClick = { onFilterSelected(filter) }
+                )
+            }
+        }
+
+        // List view
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(filteredItems) { item ->
+                WorkItemCard(item, onClick = { onItemClick(item) })
+            }
+            if (filteredItems.isEmpty()) {
+                item {
+                    EmptyState("No items in this filter")
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun BoardColumnView(column: BoardColumn, onItemClick: (WorkItem) -> Unit) {
-    val headerColor = when (column.state) {
-        "Backlog" -> Gray600
-        "Todo" -> Blue600
-        "In Progress" -> Amber400
-        "Done" -> Emerald400
-        else -> Gray600
-    }
+private fun FilterChip(
+    filter: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val backgroundColor = if (isSelected) Indigo600 else Gray800
+    val textColor = if (isSelected) Gray100 else Gray400
+
+    FilterChip(
+        selected = isSelected,
+        onClick = onClick,
+        label = {
+            Text(
+                text = filter,
+                color = textColor,
+                fontSize = 12.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            )
+        },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = backgroundColor,
+            labelColor = textColor,
+            selectedContainerColor = Indigo600,
+            selectedLabelColor = Gray100,
+        ),
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WorkItemCard(item: WorkItem, onClick: () -> Unit) {
+    var isExpanded by remember { mutableStateOf(false) }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = Gray900),
-        modifier = Modifier.width(280.dp).fillMaxHeight(),
+        colors = CardDefaults.cardColors(containerColor = Gray800),
+        modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded },
     ) {
-        Column {
-            // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(headerColor.copy(alpha = 0.15f))
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    column.state,
-                    color = headerColor,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                )
+        Column(Modifier.padding(12.dp)) {
+            // Header row: identifier + priority
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                // Identifier badge
                 Surface(
-                    color = headerColor.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(10.dp),
+                    color = Gray700,
+                    shape = RoundedCornerShape(4.dp),
                 ) {
                     Text(
-                        "${column.items.size}",
-                        color = headerColor,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
+                        item.identifier,
+                        color = Gray400,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
-            }
-
-            // Items
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                items(column.items) { item ->
-                    WorkItemCard(item, onClick = { onItemClick(item) })
-                }
-                if (column.items.isEmpty()) {
-                    item {
-                        Text(
-                            "No items",
-                            color = Gray600,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(8.dp),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun WorkItemCard(item: WorkItem, onClick: () -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Gray800),
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-    ) {
-        Column(Modifier.padding(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(item.identifier, color = Gray500, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(8.dp))
                 PriorityBadge(item.priority)
+                Spacer(Modifier.weight(1f))
+                // Expand/collapse icon
+                Icon(
+                    if (isExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                    contentDescription = if (isExpanded) "Collapse" else "Expand",
+                    tint = Gray500,
+                    modifier = Modifier.size(16.dp),
+                )
             }
-            Spacer(Modifier.height(4.dp))
+
+            Spacer(Modifier.height(8.dp))
+
+            // Title
             Text(
                 item.title,
                 color = Gray100,
-                fontSize = 13.sp,
-                maxLines = 2,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = if (isExpanded) Int.MAX_VALUE else 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (item.labels.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    item.labels.forEach { label ->
-                        val agentId = label.removePrefix("agent:")
-                        if (label.startsWith("agent:")) {
-                            AgentBadge(agentId)
-                        }
-                    }
+
+            // Assignee and labels
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                // Assignee
+                item.assignee?.let { assignee ->
+                    AgentBadge(assignee)
+                }
+                // Labels (agent: prefixed)
+                item.labels.filter { it.startsWith("agent:") }.forEach { label ->
+                    val agentId = label.removePrefix("agent:")
+                    AgentBadge(agentId)
+                }
+            }
+
+            // Expanded details
+            if (isExpanded) {
+                HorizontalDivider(color = Gray700, modifier = Modifier.padding(vertical = 12.dp))
+
+                // Description
+                item.description?.let { description ->
+                    Text(
+                        text = "Description",
+                        color = Gray400,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = description,
+                        color = Gray300,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+
+                // Created date
+                item.createdAt?.let { createdAt ->
+                    Text(
+                        text = "Created: $createdAt",
+                        color = Gray500,
+                        fontSize = 11.sp,
+                    )
                 }
             }
         }
