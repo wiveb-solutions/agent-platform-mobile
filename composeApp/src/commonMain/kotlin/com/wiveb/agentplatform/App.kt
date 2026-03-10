@@ -79,6 +79,10 @@ fun App() {
                                 tabNavigator.current == ChatTab &&
                                     navState.chatDetailSessionKey != null
 
+                            val isInAgentDetail =
+                                tabNavigator.current == AgentsTab &&
+                                    navState.agentDetailId != null
+
                             Scaffold(
                                 topBar = {
                                     if (isInChatDetail) {
@@ -95,6 +99,30 @@ fun App() {
                                             navigationIcon = {
                                                 IconButton(onClick = {
                                                     navState.chatDetailSessionKey = null
+                                                }) {
+                                                    Icon(
+                                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                                        "Back",
+                                                        tint = Gray100,
+                                                    )
+                                                }
+                                            },
+                                            colors = TopAppBarDefaults.topAppBarColors(
+                                                containerColor = Gray900,
+                                            ),
+                                        )
+                                    } else if (isInAgentDetail) {
+                                        TopAppBar(
+                                            title = {
+                                                Text(
+                                                    navState.agentDetailName ?: "Agent",
+                                                    color = Gray100,
+                                                )
+                                            },
+                                            navigationIcon = {
+                                                IconButton(onClick = {
+                                                    navState.agentDetailId = null
+                                                    navState.agentDetailName = null
                                                 }) {
                                                     Icon(
                                                         Icons.AutoMirrored.Filled.ArrowBack,
