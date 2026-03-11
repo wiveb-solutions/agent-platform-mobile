@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wiveb.agentplatform.ui.components.CollapsibleThinkingBlock
 import com.wiveb.agentplatform.data.api.AgentPlatformApi
+import com.wiveb.agentplatform.data.sse.SseService
 import com.wiveb.agentplatform.ui.components.*
 import com.wiveb.agentplatform.ui.navigation.LocalAppNavigationState
 import com.wiveb.agentplatform.ui.theme.*
@@ -204,7 +205,8 @@ private fun SessionItem(
 @Composable
 private fun ChatDetailView(sessionKey: String) {
     val api = koinInject<AgentPlatformApi>()
-    val model = remember(sessionKey) { ChatDetailScreenModel(api, sessionKey) }
+    val sseService = koinInject<SseService>()
+    val model = remember(sessionKey) { ChatDetailScreenModel(api, sessionKey, sseService) }
     val messagesState by model.messages.collectAsState()
     val sending by model.sending.collectAsState()
     val thinking by model.thinking.collectAsState()
