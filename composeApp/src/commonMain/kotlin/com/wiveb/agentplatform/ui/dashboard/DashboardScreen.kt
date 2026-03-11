@@ -152,6 +152,116 @@ private fun DashboardContent(data: DashboardData) {
             }
         }
 
+        // Weekly Metrics card
+        item {
+            SectionHeader("WEEKLY METRICS")
+            when (val metrics = data.metrics) {
+                null -> ErrorCard("Failed to load metrics", onRetry = { /* no-op for now */ })
+                else ->
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Gray900),
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    "Last 7 days",
+                                    color = Gray400,
+                                    fontSize = 11.sp,
+                                )
+                                Text(
+                                    "${metrics.completedTasks}/${metrics.totalTasks} tasks",
+                                    color = Indigo400,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Bottom,
+                            ) {
+                                Column {
+                                    Text("Completed", color = Gray400, fontSize = 11.sp)
+                                    Text(
+                                        metrics.completedTasks.toString(),
+                                        color = Emerald400,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                                Column {
+                                    Text("Total", color = Gray400, fontSize = 11.sp)
+                                    Text(
+                                        metrics.totalTasks.toString(),
+                                        color = Gray200,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+                        }
+                    }
+            }
+        }
+
+        // Agent Performance card
+        item {
+            SectionHeader("AGENT PERFORMANCE")
+            when (val stats = data.agentStats) {
+                null -> ErrorCard("Failed to load agent stats", onRetry = { /* no-op for now */ })
+                else ->
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Gray900),
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            stats.agents.forEachIndexed { index, stat ->
+                                if (index > 0) {
+                                    HorizontalDivider(
+                                        color = Gray800,
+                                        modifier = Modifier.padding(vertical = 8.dp),
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    AgentBadge(stat.agentId)
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            "${stat.storiesCompleted} stories completed",
+                                            color = Gray100,
+                                            fontSize = 13.sp,
+                                        )
+                                        Text(
+                                            "${stat.commits} commits • ${stat.prs} PRs",
+                                            color = Gray400,
+                                            fontSize = 11.sp,
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(
+                                            "Avg cycle",
+                                            color = Gray400,
+                                            fontSize = 10.sp,
+                                        )
+                                        Text(
+                                            "%.1f h".format(stat.avgCycleTimeHours),
+                                            color = Indigo400,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+            }
+        }
+
         // Recent tasks
         if (data.tasks.isNotEmpty()) {
             item { SectionHeader("RECENT TASKS") }
