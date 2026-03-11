@@ -204,7 +204,8 @@ private fun SessionItem(
 @Composable
 private fun ChatDetailView(sessionKey: String) {
     val api = koinInject<AgentPlatformApi>()
-    val model = remember(sessionKey) { ChatDetailScreenModel(api, sessionKey) }
+    val sseService = koinInject<com.wiveb.agentplatform.data.sse.SseService>()
+    val model = remember(sessionKey) { ChatDetailScreenModel(api, sessionKey, sseService) }
     val messagesState by model.messages.collectAsState()
     val sending by model.sending.collectAsState()
     val thinking by model.thinking.collectAsState()

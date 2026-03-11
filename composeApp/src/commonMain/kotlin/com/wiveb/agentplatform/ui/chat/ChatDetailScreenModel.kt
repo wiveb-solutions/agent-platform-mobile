@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 class ChatDetailScreenModel(
@@ -107,92 +109,37 @@ class ChatDetailScreenModel(
     }
 
     private fun handleSseEvent(event: SseEvent) {
+        // Parse event data as JSON to check sessionKey
+        val eventSessionKey = try {
+            val obj = json.parseToJsonElement(event.data).jsonObject
+            obj["sessionKey"]?.jsonPrimitive?.content
+        } catch (_: Exception) {
+            null
+        }
+
+        // Only process events for this session
+        if (eventSessionKey != null && eventSessionKey != sessionKey) return
+
         when (event.type) {
-            "message" -> {
-                // Parse the event data to check if it's for this session
-                try {
-                    val parsed = json.parseToJsonElements(event.data).jsonPrimitive.content
-                    val data = json.decodeFromString<SessionMessageEvent>(parsed)
-                    if (data.sessionKey == sessionKey) {
-                        updateMessagesWithNewMessage(data.message)
-                    }
-                } catch (e: Exception) {
-                    // Fallback: try to parse directly as ChatMessage
-                    try {
-                        val message = json.decodeFromString<ChatMessage>(event.data)
-                        if (message.sessionKey == sessionKey) {
-                            updateMessagesWithNewMessage(message)
-                        }
-                    } catch (_: Exception) {
-                        // Ignore malformed events
-                    }
-                }
+            "message", "chat" -> {
+                // New or updated message — reload the full message list
+                loadMessages()
             }
             "thinking" -> {
-                // Update thinking level if provided
-                try {
-                    val parsed = json.parseToJsonElements(event.data).jsonPrimitive.content
-                    val data = json.decodeFromString<SessionThinkingEvent>(parsed)
-                    if (data.sessionKey == sessionKey) {
-                        _thinking.value = data.level
-                    }
-                } catch (_: Exception) {
-                    // Ignore malformed events
-                }
+                // Thinking event — message is being generated
+                _streaming.value = true
             }
-            "complete" -> {
-                // Streaming complete for this session
-                try {
-                    val parsed = json.parseToJsonElements(event.data).jsonPrimitive.content
-                    val data = json.decodeFromString<SessionKeyEvent>(parsed)
-                    if (data.sessionKey == sessionKey) {
-                        _streaming.value = false
-                        _sending.value = false
-                        stopPolling()
-                    }
-                } catch (_: Exception) {
-                    // Ignore malformed events
-                }
+            "complete", "done" -> {
+                _streaming.value = false
+                _sending.value = false
+                stopPolling()
+                loadMessages()
             }
             "error" -> {
-                // Handle error events
-                try {
-                    val parsed = json.parseToJsonElements(event.data).jsonPrimitive.content
-                    val data = json.decodeFromString<SessionKeyEvent>(parsed)
-                    if (data.sessionKey == sessionKey) {
-                        _streaming.value = false
-                        _sending.value = false
-                        stopPolling()
-                    }
-                } catch (_: Exception) {
-                    // Ignore malformed events
-                }
-            }
-        }
-    }
-
-    private fun updateMessagesWithNewMessage(newMessage: ChatMessage) {
-        screenModelScope.launch {
-            when (val current = _messages.value) {
-                is UiState.Success -> {
-                    val currentList = current.data
-                    // Check if message already exists (update) or is new (add)
-                    val existingIndex = currentList.indexOfFirst { it.id == newMessage.id }
-                    val updatedList = if (existingIndex >= 0) {
-                        // Update existing message (streaming update)
-                        val list = currentList.toMutableList()
-                        list[existingIndex] = newMessage
-                        list
-                    } else {
-                        // Add new message
-                        currentList + newMessage
-                    }
-                    _messages.value = UiState.Success(updatedList)
-                }
-                else -> {
-                    // If not in Success state, reload messages
-                    loadMessages()
-                }
+                _streaming.value = false
+                _sending.value = false
+                stopPolling()
+                loadMessages()
             }
         }
     }
@@ -230,18 +177,4 @@ class ChatDetailScreenModel(
         pollJob = null
     }
 
-    // Data classes for SSE event parsing
-    private data class SessionMessageEvent(
-        val sessionKey: String,
-        val message: ChatMessage,
-    )
-
-    private data class SessionThinkingEvent(
-        val sessionKey: String,
-        val level: String,
-    )
-
-    private data class SessionKeyEvent(
-        val sessionKey: String,
-    )
 }
