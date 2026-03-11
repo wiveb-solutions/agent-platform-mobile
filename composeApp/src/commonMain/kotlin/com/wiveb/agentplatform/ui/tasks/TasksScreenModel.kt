@@ -31,6 +31,9 @@ class TasksScreenModel(
     private val _filter = MutableStateFlow(TasksFilter())
     val filter: StateFlow<TasksFilter> = _filter.asStateFlow()
 
+    private var _lastCreateResult = MutableStateFlow<Result<Unit>?>(null)
+    val lastCreateResult: StateFlow<Result<Unit>?> = _lastCreateResult.asStateFlow()
+
     private var refreshJob: Job? = null
 
     init {
@@ -94,5 +97,18 @@ class TasksScreenModel(
                 load()
             }
         }
+    }
+
+    fun createTask(agent: String, prompt: String) {
+        screenModelScope.launch {
+            _lastCreateResult.value = runCatching {
+                api.createTask(agent, prompt)
+                Unit
+            }
+        }
+    }
+
+    fun clearLastCreateResult() {
+        _lastCreateResult.value = null
     }
 }

@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +30,8 @@ fun TasksScreen() {
     val state by model.state.collectAsState()
     val currentFilter by model.filter.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
+    var showCreateDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Reset any detail view when leaving TasksTab
     DisposableEffect(Unit) {
@@ -43,49 +46,84 @@ fun TasksScreen() {
         if (state !is UiState.Loading) isRefreshing = false
     }
 
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = {
-            isRefreshing = true
-            model.load()
-        },
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Filter chips
-            FilterChips(
-                currentFilter = currentFilter,
-                onAgentFilterChange = { model.setAgentFilter(it) },
-                onStatusFilterChange = { model.setStatusFilter(it) },
-                onClearFilters = { model.clearFilters() },
-            )
+    LaunchedEffect(model.lastCreateResult) {
+        val result = model.lastCreateResult.value
+        if (result != null) {
+            if (result.isSuccess) {
+                model.load()
+            } else {
+                snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Failed to create task")
+            }
+            model.clearLastCreateResult()
+        }
+    }
 
-            when (val s = state) {
-                is UiState.Loading -> LoadingIndicator(Modifier.fillMaxSize())
-                is UiState.Error -> ErrorCard(s.message, onRetry = { model.load() })
-                is UiState.Success -> {
-                    val tasks = s.data.filteredTasks
-                    if (tasks.isEmpty()) {
-                        EmptyState(
-                            if (currentFilter.agent != "All" || currentFilter.status != "All")
-                                "No tasks match your filters"
-                            else
-                                "No tasks found",
-                            Modifier.fillMaxSize()
-                        )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            items(tasks) { task ->
-                                TaskCard(task = task)
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showCreateDialog = true },
+                containerColor = Indigo600,
+                contentColor = Color.White,
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Create task")
+            }
+        },
+    ) { paddingValues ->
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                isRefreshing = true
+                model.load()
+            },
+        ) {
+            Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+                // Filter chips
+                FilterChips(
+                    currentFilter = currentFilter,
+                    onAgentFilterChange = { model.setAgentFilter(it) },
+                    onStatusFilterChange = { model.setStatusFilter(it) },
+                    onClearFilters = { model.clearFilters() },
+                )
+
+                when (val s = state) {
+                    is UiState.Loading -> LoadingIndicator(Modifier.fillMaxSize())
+                    is UiState.Error -> ErrorCard(s.message, onRetry = { model.load() })
+                    is UiState.Success -> {
+                        val tasks = s.data.filteredTasks
+                        if (tasks.isEmpty()) {
+                            EmptyState(
+                                if (currentFilter.agent != "All" || currentFilter.status != "All")
+                                    "No tasks match your filters"
+                                else
+                                    "No tasks found",
+                                Modifier.fillMaxSize()
+                            )
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                items(tasks) { task ->
+                                    TaskCard(task = task)
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    if (showCreateDialog) {
+        CreateTaskDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreate = { selectedAgent, prompt ->
+                model.createTask(selectedAgent, prompt)
+                showCreateDialog = false
+            },
+        )
     }
 }
 
@@ -332,4 +370,106 @@ private fun formatDuration(ms: Long): String {
         ms < 3600000 -> "${ms / 60000}m ${ms % 60000 / 1000}s"
         else -> "${ms / 3600000}h ${ms % 3600000 / 60000}m"
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CreateTaskDialog(
+    onDismiss: () -> Unit,
+    onCreate: (String, String) -> Unit,
+) {
+    var selectedAgent by remember { mutableStateOf("main") }
+    var prompt by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Create New Task", color = Gray100, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Agent selector
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Select Agent",
+                        color = Gray400,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded },
+                    ) {
+                        OutlinedTextField(
+                            value = selectedAgent.uppercase(),
+                            onValueChange = {},
+                            readOnly = true,
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Indigo600,
+                                unfocusedBorderColor = Gray700,
+                                focusedTextColor = Gray100,
+                                unfocusedTextColor = Gray100,
+                            ),
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                        ) {
+                            listOf("main", "dev", "pm", "qa", "notaire").forEach { agent ->
+                                DropdownMenuItem(
+                                    text = { Text(agent.uppercase(), color = Gray100) },
+                                    onClick = {
+                                        selectedAgent = agent
+                                        expanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Prompt text field
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Task Prompt",
+                        color = Gray400,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    OutlinedTextField(
+                        value = prompt,
+                        onValueChange = { prompt = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3,
+                        maxLines = 6,
+                        placeholder = { Text("Enter your task prompt...", color = Gray500) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Indigo600,
+                            unfocusedBorderColor = Gray700,
+                            focusedTextColor = Gray100,
+                            unfocusedTextColor = Gray100,
+                        ),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { if (prompt.isNotBlank()) onCreate(selectedAgent, prompt.trim()) },
+                enabled = prompt.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
+            ) {
+                Text("Create", color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Gray400)
+            }
+        },
+        containerColor = Gray800,
+    )
 }
