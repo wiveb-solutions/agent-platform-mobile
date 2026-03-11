@@ -6,8 +6,7 @@ import com.wiveb.agentplatform.data.api.AgentPlatformApi
 import com.wiveb.agentplatform.data.model.ChatMessage
 import com.wiveb.agentplatform.data.sse.SseEvent
 import com.wiveb.agentplatform.data.sse.SseService
-import com.wiveb.agentplatform.ui.components.SidebarState
-import com.wiveb.agentplatform.ui.components.UiState
+import com.wiveb.agentplatform.ui.components.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
@@ -39,6 +39,11 @@ class ChatDetailScreenModel(
     private val _sidebarState = MutableStateFlow(SidebarState(isExpanded = false))
     val sidebarState: StateFlow<SidebarState> = _sidebarState.asStateFlow()
 
+    // Deep Search state
+    private val _deepSearchState = MutableStateFlow(DeepSearchProgressState(isActive = false))
+    val deepSearchState: StateFlow<DeepSearchProgressState> = _deepSearchState.asStateFlow()
+
+    private var deepSearchTimerJob: Job? = null
     private var pollJob: Job? = null
     private var sseJob: Job? = null
 
@@ -65,7 +70,105 @@ class ChatDetailScreenModel(
     }
 
     fun toggleSidebar() {
-        _sidebarState.value = _sidebarState.copy(isExpanded = !_sidebarState.value.isExpanded)
+        _sidebarState.value = SidebarState(isExpanded = !_sidebarState.value.isExpanded)
+    }
+
+    // Deep Search methods
+    fun startDeepSearch() {
+        screenModelScope.launch {
+            _deepSearchState.value = DeepSearchProgressState(
+                isActive = true,
+                events = listOf(
+                    DeepSearchEvent(
+                        id = DeepSearchEvent.generateId(),
+                        type = EventType.START,
+                        description = "Deep Search initiated",
+                    )
+                ),
+                sourcesFound = 0,
+                elapsedSeconds = 0,
+                stepsCompleted = 0,
+                totalSteps = 5,
+            )
+            startDeepSearchTimer()
+        }
+    }
+
+    fun addDeepSearchEvent(event: DeepSearchEvent) {
+        screenModelScope.launch {
+            _deepSearchState.value = _deepSearchState.value.copy(
+                events = _deepSearchState.value.events + event,
+            )
+        }
+    }
+
+    fun updateDeepSearchStats(sourcesFound: Int, stepsCompleted: Int) {
+        screenModelScope.launch {
+            _deepSearchState.value = _deepSearchState.value.copy(
+                sourcesFound = sourcesFound,
+                stepsCompleted = stepsCompleted,
+            )
+        }
+    }
+
+    fun completeDeepSearch() {
+        screenModelScope.launch {
+            stopDeepSearchTimer()
+            _deepSearchState.value = _deepSearchState.value.copy(
+                isActive = false,
+                events = _deepSearchState.value.events + DeepSearchEvent(
+                    id = DeepSearchEvent.generateId(),
+                    type = EventType.COMPLETE,
+                    description = "Deep Search completed successfully",
+                ),
+                stepsCompleted = _deepSearchState.value.totalSteps,
+            )
+            // Auto-dismiss after a short delay
+            delay(2000)
+            _deepSearchState.value = DeepSearchProgressState(isActive = false)
+        }
+    }
+
+    fun failDeepSearch(message: String) {
+        screenModelScope.launch {
+            stopDeepSearchTimer()
+            _deepSearchState.value = _deepSearchState.value.copy(
+                isActive = false,
+                errorMessage = message,
+                events = _deepSearchState.value.events + DeepSearchEvent(
+                    id = DeepSearchEvent.generateId(),
+                    type = EventType.ERROR,
+                    description = message,
+                ),
+            )
+            // Auto-dismiss after a short delay
+            delay(3000)
+            _deepSearchState.value = DeepSearchProgressState(isActive = false)
+        }
+    }
+
+    fun dismissDeepSearchPanel() {
+        screenModelScope.launch {
+            stopDeepSearchTimer()
+            _deepSearchState.value = DeepSearchProgressState(isActive = false)
+        }
+    }
+
+    private fun startDeepSearchTimer() {
+        stopDeepSearchTimer()
+        deepSearchTimerJob = screenModelScope.launch {
+            var seconds = 0L
+            while (_deepSearchState.value.isActive) {
+                delay(1000)
+                seconds++
+                _deepSearchState.value = _deepSearchState.value.copy(elapsedSeconds = seconds)
+            }
+        }
+    }
+
+    private fun stopDeepSearchTimer() {
+        deepSearchTimerJob?.cancel()
+        deepSearchTimerJob = null
     }
 
     fun sendMessage(text: String) {
@@ -189,7 +292,9 @@ class ChatDetailScreenModel(
     private fun extractSessionKey(data: String): String? {
         try {
             val element = json.parseToJsonElement(data)
-            return element.jsonObject["sessionKey"]?.contentOrNull
+            val obj = element as? JsonObject ?: return null
+            val value = obj.get("sessionKey") ?: return null
+            return (value as? JsonPrimitive)?.contentOrNull
         } catch (_: Exception) {
             return null
         }
@@ -198,7 +303,7 @@ class ChatDetailScreenModel(
     private fun extractMessageJson(data: String): String {
         try {
             val element = json.parseToJsonElement(data)
-            return element.jsonObject["message"]?.toString() ?: data
+            return (element as? JsonObject)?.get("message")?.toString() ?: data
         } catch (_: Exception) {
             return data
         }
@@ -207,7 +312,9 @@ class ChatDetailScreenModel(
     private fun extractThinkingLevel(data: String): String? {
         try {
             val element = json.parseToJsonElement(data)
-            return element.jsonObject["level"]?.contentOrNull
+            val obj = element as? JsonObject ?: return null
+            val value = obj.get("level") ?: return null
+            return (value as? JsonPrimitive)?.contentOrNull
         } catch (_: Exception) {
             return null
         }
