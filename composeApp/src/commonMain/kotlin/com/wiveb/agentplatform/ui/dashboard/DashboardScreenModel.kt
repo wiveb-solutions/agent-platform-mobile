@@ -15,6 +15,8 @@ data class DashboardData(
     val agents: List<Agent> = emptyList(),
     val burndown: BurndownResponse = BurndownResponse(),
     val tasks: List<AgentTask> = emptyList(),
+    val metrics: MetricsResponse? = null,
+    val agentStats: AgentStatsResponse? = null,
 )
 
 class DashboardScreenModel(
@@ -40,7 +42,9 @@ class DashboardScreenModel(
                 val agents = runCatching { api.getAgents() }.getOrDefault(emptyList())
                 val burndown = runCatching { api.getBurndown() }.getOrDefault(BurndownResponse())
                 val tasks = runCatching { api.getTasks() }.getOrDefault(TasksResponse()).tasks.take(5)
-                _state.value = UiState.Success(DashboardData(health, agents, burndown, tasks))
+                val metrics = runCatching { api.getMetrics(7) }.getOrNull()
+                val agentStats = runCatching { api.getAgentStats() }.getOrNull()
+                _state.value = UiState.Success(DashboardData(health, agents, burndown, tasks, metrics, agentStats))
             } catch (e: Exception) {
                 _state.value = UiState.Error(e.message ?: "Failed to load dashboard")
             }
