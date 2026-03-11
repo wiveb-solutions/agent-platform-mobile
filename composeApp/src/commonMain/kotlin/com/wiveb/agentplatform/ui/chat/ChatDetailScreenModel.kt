@@ -6,8 +6,7 @@ import com.wiveb.agentplatform.data.api.AgentPlatformApi
 import com.wiveb.agentplatform.data.model.ChatMessage
 import com.wiveb.agentplatform.data.sse.SseEvent
 import com.wiveb.agentplatform.data.sse.SseService
-import com.wiveb.agentplatform.ui.components.SidebarState
-import com.wiveb.agentplatform.ui.components.UiState
+import com.wiveb.agentplatform.ui.components.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,8 +15,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 class ChatDetailScreenModel(
     private val api: AgentPlatformApi,
@@ -40,6 +39,11 @@ class ChatDetailScreenModel(
     private val _sidebarState = MutableStateFlow(SidebarState(isExpanded = false))
     val sidebarState: StateFlow<SidebarState> = _sidebarState.asStateFlow()
 
+    // Deep Search state
+    private val _deepSearchState = MutableStateFlow(DeepSearchProgressState(isActive = false))
+    val deepSearchState: StateFlow<DeepSearchProgressState> = _deepSearchState.asStateFlow()
+
+    private var deepSearchTimerJob: Job? = null
     private var pollJob: Job? = null
     private var sseJob: Job? = null
 
@@ -66,7 +70,105 @@ class ChatDetailScreenModel(
     }
 
     fun toggleSidebar() {
-        _sidebarState.value = _sidebarState.value.copy(isExpanded = !_sidebarState.value.isExpanded)
+        _sidebarState.value = SidebarState(isExpanded = !_sidebarState.value.isExpanded)
+    }
+
+    // Deep Search methods
+    fun startDeepSearch() {
+        screenModelScope.launch {
+            _deepSearchState.value = DeepSearchProgressState(
+                isActive = true,
+                events = listOf(
+                    DeepSearchEvent(
+                        id = DeepSearchEvent.generateId(),
+                        type = EventType.START,
+                        description = "Deep Search initiated",
+                    )
+                ),
+                sourcesFound = 0,
+                elapsedSeconds = 0,
+                stepsCompleted = 0,
+                totalSteps = 5,
+            )
+            startDeepSearchTimer()
+        }
+    }
+
+    fun addDeepSearchEvent(event: DeepSearchEvent) {
+        screenModelScope.launch {
+            _deepSearchState.value = _deepSearchState.value.copy(
+                events = _deepSearchState.value.events + event,
+            )
+        }
+    }
+
+    fun updateDeepSearchStats(sourcesFound: Int, stepsCompleted: Int) {
+        screenModelScope.launch {
+            _deepSearchState.value = _deepSearchState.value.copy(
+                sourcesFound = sourcesFound,
+                stepsCompleted = stepsCompleted,
+            )
+        }
+    }
+
+    fun completeDeepSearch() {
+        screenModelScope.launch {
+            stopDeepSearchTimer()
+            _deepSearchState.value = _deepSearchState.value.copy(
+                isActive = false,
+                events = _deepSearchState.value.events + DeepSearchEvent(
+                    id = DeepSearchEvent.generateId(),
+                    type = EventType.COMPLETE,
+                    description = "Deep Search completed successfully",
+                ),
+                stepsCompleted = _deepSearchState.value.totalSteps,
+            )
+            // Auto-dismiss after a short delay
+            delay(2000)
+            _deepSearchState.value = DeepSearchProgressState(isActive = false)
+        }
+    }
+
+    fun failDeepSearch(message: String) {
+        screenModelScope.launch {
+            stopDeepSearchTimer()
+            _deepSearchState.value = _deepSearchState.value.copy(
+                isActive = false,
+                errorMessage = message,
+                events = _deepSearchState.value.events + DeepSearchEvent(
+                    id = DeepSearchEvent.generateId(),
+                    type = EventType.ERROR,
+                    description = message,
+                ),
+            )
+            // Auto-dismiss after a short delay
+            delay(3000)
+            _deepSearchState.value = DeepSearchProgressState(isActive = false)
+        }
+    }
+
+    fun dismissDeepSearchPanel() {
+        screenModelScope.launch {
+            stopDeepSearchTimer()
+            _deepSearchState.value = DeepSearchProgressState(isActive = false)
+        }
+    }
+
+    private fun startDeepSearchTimer() {
+        stopDeepSearchTimer()
+        deepSearchTimerJob = screenModelScope.launch {
+            var seconds = 0L
+            while (_deepSearchState.value.isActive) {
+                delay(1000)
+                seconds++
+                _deepSearchState.value = _deepSearchState.value.copy(elapsedSeconds = seconds)
+            }
+        }
+    }
+
+    private fun stopDeepSearchTimer() {
+        deepSearchTimerJob?.cancel()
+        deepSearchTimerJob = null
     }
 
     fun sendMessage(text: String) {
@@ -109,37 +211,146 @@ class ChatDetailScreenModel(
     }
 
     private fun handleSseEvent(event: SseEvent) {
-        // Parse event data as JSON to check sessionKey
-        val eventSessionKey = try {
-            val obj = json.parseToJsonElement(event.data).jsonObject
-            obj["sessionKey"]?.jsonPrimitive?.content
-        } catch (_: Exception) {
-            null
-        }
-
-        // Only process events for this session
-        if (eventSessionKey != null && eventSessionKey != sessionKey) return
-
         when (event.type) {
-            "message", "chat" -> {
-                // New or updated message — reload the full message list
-                loadMessages()
+            "message" -> {
+                // Parse the event data - it might be wrapped or direct
+                try {
+                    val data = parseEventData(event.data)
+                    // Check if this message is for our session by looking at sessionKey in the JSON
+                    val sessionKeyFromEvent = extractSessionKey(data)
+                    if (sessionKeyFromEvent == null || sessionKeyFromEvent == sessionKey) {
+                        // Try to extract ChatMessage from the data
+                        try {
+                            val messageJson = extractMessageJson(data)
+                            val message = json.decodeFromString<ChatMessage>(messageJson)
+                            updateMessagesWithNewMessage(message)
+                        } catch (_: Exception) {
+                            // Fallback: create a simple message from raw data
+                            val message = ChatMessage(
+                                role = "assistant",
+                                content = data,
+                            )
+                            updateMessagesWithNewMessage(message)
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore malformed events
+                }
             }
             "thinking" -> {
-                // Thinking event — message is being generated
-                _streaming.value = true
+                // Update thinking level if provided
+                try {
+                    val data = parseEventData(event.data)
+                    val sessionKeyFromEvent = extractSessionKey(data)
+                    if (sessionKeyFromEvent == null || sessionKeyFromEvent == sessionKey) {
+                        // Try to extract thinking level
+                        val level = extractThinkingLevel(data)
+                        if (level != null) {
+                            _thinking.value = level
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Ignore malformed events
+                }
             }
-            "complete", "done" -> {
-                _streaming.value = false
-                _sending.value = false
-                stopPolling()
-                loadMessages()
+            "complete" -> {
+                // Streaming complete for this session
+                try {
+                    val data = parseEventData(event.data)
+                    val sessionKeyFromEvent = extractSessionKey(data)
+                    if (sessionKeyFromEvent == null || sessionKeyFromEvent == sessionKey) {
+                        _streaming.value = false
+                        _sending.value = false
+                        stopPolling()
+                    }
+                } catch (_: Exception) {
+                    // Ignore malformed events
+                }
             }
             "error" -> {
-                _streaming.value = false
-                _sending.value = false
-                stopPolling()
-                loadMessages()
+                // Handle error events
+                try {
+                    val data = parseEventData(event.data)
+                    val sessionKeyFromEvent = extractSessionKey(data)
+                    if (sessionKeyFromEvent == null || sessionKeyFromEvent == sessionKey) {
+                        _streaming.value = false
+                        _sending.value = false
+                        stopPolling()
+                    }
+                } catch (_: Exception) {
+                    // Ignore malformed events
+                }
+            }
+        }
+    }
+
+    private fun parseEventData(data: String): String {
+        // Remove surrounding quotes if present
+        return data.trim('"')
+    }
+
+    private fun extractSessionKey(data: String): String? {
+        try {
+            val element = json.parseToJsonElement(data)
+            val obj = element as? JsonObject ?: return null
+            val value = obj.get("sessionKey") ?: return null
+            return (value as? JsonPrimitive)?.contentOrNull
+        } catch (_: Exception) {
+            return null
+        }
+    }
+
+    private fun extractMessageJson(data: String): String {
+        try {
+            val element = json.parseToJsonElement(data)
+            return (element as? JsonObject)?.get("message")?.toString() ?: data
+        } catch (_: Exception) {
+            return data
+        }
+    }
+
+    private fun extractThinkingLevel(data: String): String? {
+        try {
+            val element = json.parseToJsonElement(data)
+            val obj = element as? JsonObject ?: return null
+            val value = obj.get("level") ?: return null
+            return (value as? JsonPrimitive)?.contentOrNull
+        } catch (_: Exception) {
+            return null
+        }
+    }
+
+    private fun updateMessagesWithNewMessage(newMessage: ChatMessage) {
+        screenModelScope.launch {
+            when (val current = _messages.value) {
+                is UiState.Success -> {
+                    val currentList = current.data
+                    // Find the last assistant message and update it (streaming)
+                    val assistantMessages = currentList.indices.filter { currentList[it].role == "assistant" }
+                    val updatedList = if (assistantMessages.isNotEmpty()) {
+                        // Update the last assistant message
+                        val list = currentList.toMutableList()
+                        val lastIndex = assistantMessages.last()
+                        // Append content if it's a streaming update
+                        val existingMessage = list[lastIndex] as ChatMessage
+                        list[lastIndex] = ChatMessage(
+                            role = existingMessage.role,
+                            content = existingMessage.content + newMessage.content,
+                            createdAt = existingMessage.createdAt,
+                            blocks = existingMessage.blocks,
+                            usage = existingMessage.usage,
+                        )
+                        list
+                    } else {
+                        // Add new message
+                        currentList + newMessage
+                    }
+                    _messages.value = UiState.Success(updatedList)
+                }
+                else -> {
+                    // If not in Success state, reload messages
+                    loadMessages()
+                }
             }
         }
     }
@@ -155,7 +366,7 @@ class ChatDetailScreenModel(
                     _messages.value = UiState.Success(resp.messages)
                     // Check if last message is from assistant (response received)
                     val last = resp.messages.lastOrNull()
-                    if (last?.role == "assistant" && !last.content.isBlank()) {
+                    if (last?.role == "assistant" && last.content.isNotBlank()) {
                         _sending.value = false
                         _streaming.value = false
                         break
@@ -176,5 +387,4 @@ class ChatDetailScreenModel(
         pollJob?.cancel()
         pollJob = null
     }
-
 }

@@ -21,7 +21,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wiveb.agentplatform.ui.components.CollapsibleThinkingBlock
 import com.wiveb.agentplatform.data.api.AgentPlatformApi
+import com.wiveb.agentplatform.data.sse.SseService
 import com.wiveb.agentplatform.ui.components.*
+import com.wiveb.agentplatform.ui.components.DeepSearchProgressPanel
 import com.wiveb.agentplatform.ui.navigation.LocalAppNavigationState
 import com.wiveb.agentplatform.ui.theme.*
 import com.wiveb.agentplatform.ui.utils.TimeUtils
@@ -204,11 +206,12 @@ private fun SessionItem(
 @Composable
 private fun ChatDetailView(sessionKey: String) {
     val api = koinInject<AgentPlatformApi>()
-    val sseService = koinInject<com.wiveb.agentplatform.data.sse.SseService>()
+    val sseService = koinInject<SseService>()
     val model = remember(sessionKey) { ChatDetailScreenModel(api, sessionKey, sseService) }
     val messagesState by model.messages.collectAsState()
     val sending by model.sending.collectAsState()
     val thinking by model.thinking.collectAsState()
+    val deepSearchState by model.deepSearchState.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
@@ -220,7 +223,8 @@ private fun ChatDetailView(sessionKey: String) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
         // Messages — no TopAppBar here, managed by App.kt
         when (val s = messagesState) {
             is UiState.Loading -> Box(Modifier.weight(1f)) { LoadingIndicator() }
@@ -301,6 +305,16 @@ private fun ChatDetailView(sessionKey: String) {
             isSending = sending,
             modifier = Modifier.fillMaxWidth(),
         )
+        }
+
+        // Deep Search Progress Panel (overlay)
+        if (deepSearchState.isActive) {
+            DeepSearchProgressPanel(
+                state = deepSearchState,
+                onDismiss = { model.dismissDeepSearchPanel() },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }
 
