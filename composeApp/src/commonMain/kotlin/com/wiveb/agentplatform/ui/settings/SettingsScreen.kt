@@ -10,6 +10,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
+import com.wiveb.agentplatform.ui.components.StatusDot
 import com.wiveb.agentplatform.ui.theme.*
 
 @Composable
@@ -18,7 +19,9 @@ fun SettingsScreen() {
     val baseUrl by model.baseUrl.collectAsState()
     val testResult by model.testResult.collectAsState()
     val testing by model.testing.collectAsState()
+    val connectionStatus by model.connectionStatus.collectAsState()
     var urlInput by remember(baseUrl) { mutableStateOf(baseUrl) }
+    val showResetButton = baseUrl != SettingsScreenModel.DEFAULT_BASE_URL
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -29,7 +32,27 @@ fun SettingsScreen() {
         // Backend URL
         Card(colors = CardDefaults.cardColors(containerColor = Gray900)) {
             Column(Modifier.padding(16.dp)) {
-                Text("Backend URL", color = Gray400, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text("Backend URL", color = Gray400, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        StatusDot(status = connectionStatus)
+                    }
+                    if (showResetButton) {
+                        TextButton(onClick = {
+                            urlInput = SettingsScreenModel.DEFAULT_BASE_URL
+                            model.resetBaseUrl()
+                        }) {
+                            Text("Reset", color = Indigo400)
+                        }
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = urlInput,
