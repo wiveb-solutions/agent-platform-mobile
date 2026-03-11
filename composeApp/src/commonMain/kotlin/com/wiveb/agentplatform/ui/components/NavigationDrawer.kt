@@ -127,7 +127,7 @@ private fun NavigationDrawerContent(
             DrawerItem(
                 title = "Tasks",
                 icon = Icons.Default.Checklist,
-                tab = com.wiveb.agentplatform.ui.navigation.BoardTab
+                tab = com.wiveb.agentplatform.ui.navigation.TasksTab
             ),
             DrawerItem(
                 title = "Agents",

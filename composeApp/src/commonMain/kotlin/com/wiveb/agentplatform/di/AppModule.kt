@@ -11,6 +11,7 @@ import com.wiveb.agentplatform.ui.chat.ChatListScreenModel
 import com.wiveb.agentplatform.ui.dashboard.DashboardScreenModel
 import com.wiveb.agentplatform.ui.projects.ProjectsScreenModel
 import com.wiveb.agentplatform.ui.settings.SettingsScreenModel
+import com.wiveb.agentplatform.ui.tasks.TasksScreenModel
 import org.koin.dsl.module
 
 val appModule = module {
@@ -30,4 +31,5 @@ val appModule = module {
     single { AgentsScreenModel(get()) }
     single { ProjectsScreenModel(get()) }
     single { SettingsScreenModel(get(), get()) }
+    single { TasksScreenModel(get()) }
 }
