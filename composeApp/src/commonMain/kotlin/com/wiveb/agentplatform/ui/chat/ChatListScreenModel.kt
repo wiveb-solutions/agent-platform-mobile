@@ -5,7 +5,9 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import com.wiveb.agentplatform.data.api.AgentPlatformApi
 import com.wiveb.agentplatform.data.model.ChatSession
 import com.wiveb.agentplatform.ui.components.UiState
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class ChatListScreenModel(
@@ -18,6 +20,9 @@ class ChatListScreenModel(
     private val _filter = MutableStateFlow<String?>(null)
     val filter: StateFlow<String?> = _filter.asStateFlow()
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
     init {
         load()
     }
@@ -27,12 +32,27 @@ class ChatListScreenModel(
         load()
     }
 
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+        load()
+    }
+
     fun load() {
         screenModelScope.launch {
             _state.value = UiState.Loading
             try {
                 val resp = api.getSessions(agentId = _filter.value)
-                _state.value = UiState.Success(resp.sessions)
+                val sessions = resp.sessions
+                val queryLower = _searchQuery.value.lowercase()
+                val filtered = if (_searchQuery.value.isNotBlank()) {
+                    sessions.filter { 
+                        (it.title?.lowercase()?.contains(queryLower) == true) ||
+                                (it.preview?.lowercase()?.contains(queryLower) == true)
+                    }
+                } else {
+                    sessions
+                }
+                _state.value = UiState.Success(filtered)
             } catch (e: Exception) {
                 _state.value = UiState.Error(e.message ?: "Failed to load sessions")
             }
