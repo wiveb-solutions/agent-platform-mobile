@@ -86,6 +86,7 @@ private fun ChatListView(
     val model = koinInject<ChatListScreenModel>()
     val state by model.state.collectAsState()
     val filter by model.filter.collectAsState()
+    val searchQuery by model.searchQuery.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
 
     LaunchedEffect(state) {
@@ -96,6 +97,15 @@ private fun ChatListView(
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
+            // Search bar
+            TextField(
+                value = searchQuery,
+                onValueChange = { model.setSearchQuery(it) },
+                label = { Text("Search sessions") },
+                placeholder = { Text("Search by title") },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+
             // Filter chips — no TopAppBar here, managed by App.kt
             LazyRow(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
