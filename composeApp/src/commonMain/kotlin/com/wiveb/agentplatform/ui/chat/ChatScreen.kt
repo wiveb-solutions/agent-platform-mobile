@@ -215,11 +215,17 @@ private fun ChatDetailView(sessionKey: String) {
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
+    var isInitialLoad by remember { mutableStateOf(true) }
     // Auto-scroll to bottom on new messages
     LaunchedEffect(messagesState) {
         val msgs = (messagesState as? UiState.Success)?.data ?: return@LaunchedEffect
         if (msgs.isNotEmpty()) {
-            listState.animateScrollToItem(msgs.size - 1)
+            if (isInitialLoad) {
+                listState.scrollToItem(msgs.size - 1)  // instant
+                isInitialLoad = false
+            } else {
+                listState.animateScrollToItem(msgs.size - 1)  // smooth
+            }
         }
     }
 
