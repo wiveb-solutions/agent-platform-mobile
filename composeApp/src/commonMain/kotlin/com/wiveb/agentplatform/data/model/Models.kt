@@ -31,6 +31,7 @@ data class Agent(
     val lastAction: String? = null,
     val tokenUsage: TokenUsage? = null,
     val recentTools: List<String>? = null,
+    val recentTasks: List<String>? = null,
     val contextTokens: Int? = null,
     val contextWindow: Int? = null,
 )

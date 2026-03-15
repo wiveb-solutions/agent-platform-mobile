@@ -383,6 +383,47 @@ private fun AgentDetailView(agent: Agent) {
                         }
                     }
                 }
+            }
+            // Recent Tasks
+            item {
+                if (!agent.recentTasks.isNullOrEmpty()) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Gray800),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("Recent Tasks", color = Gray400, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                Icon(Icons.Default.Checklist, null, tint = Indigo400, modifier = Modifier.size(16.dp))
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Column(
+                                horizontalAlignment = Alignment.Start
+                            ) {
+                                agent.recentTasks!!.take(5).map { task ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Icon(Icons.Default.CheckCircle, null, tint = Gray500, modifier = Modifier.size(20.dp))
+                                        Text(
+                                            task,
+                                            color = Gray300,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
